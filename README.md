@@ -88,6 +88,16 @@ where `Δlog π = log π_new - log π_old` and `A` is the advantage function.
 
 ---
 
+## Submodules
+
+### `implementations/clean_spma`
+Reference implementation of the SPMA algorithm. This is **not used directly** but served as the foundation for our refactored `cmdp_spma_package`. We keep it as:
+- A reference for the original SPMA algorithm
+- Documentation of the base implementation
+- Attribution to the original work
+
+---
+
 ## Features
 
 ### Core Capabilities
