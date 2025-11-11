@@ -169,6 +169,106 @@ GAIL / State Matching & $\text{KL}(d_\pi \| d_E)$ & FTL & RL \\
 \section*{What we will implement and measure (brief)}
 \textbf{Method.} Dual--SPMA: $y_{k+1}\!\leftarrow\!\mathrm{MA}\!\left(y_k,\,\hat d_{\pi_k}-\nabla f^*(y_k)\right)$; policy step: run SPMA for $K_{\text{in}}$ epochs on $r_{y_k}$; return $\hat d_{\pi_k}$ (or $\widehat{\mathbb E}[\phi]$).
 
+%  Framework Overview Figure
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+    block/.style={rectangle, draw, text width=3.2cm, text centered, rounded corners, minimum height=1.2cm, font=\small},
+    arrow/.style={->, >=stealth, thick}
+]
+
+% ============================================================================
+% TOP ROW: Three source papers
+% ============================================================================
+\node[block, fill=red!20] (paper1) at (0,5) {
+    \textbf{Convex MDPs}\\
+    Zahavy et al.\ [2021]
+};
+
+\node[block, fill=green!20, text width=3.5cm] (paper2) at (5.5,5) {
+    \textbf{CMDP Primal--Dual}\\
+    Ding et al.\ [2020]
+};
+
+\node[block, fill=orange!20] (paper3) at (11,5) {
+    \textbf{SPMA}\\
+    Asad et al.\ [2024]
+};
+
+% ============================================================================
+% MIDDLE ROW: Contributions extracted
+% ============================================================================
+\node[block, fill=red!10] (contrib1) at (0,3) {
+    Fenchel Duality\\
+    Meta-algorithm
+};
+
+\node[block, fill=green!10, text width=3.8cm] (contrib2) at (5.5,3) {
+    Constraint Handling\\
+    {\scriptsize (baseline \& dual-update\\reference)}
+};
+
+\node[block, fill=orange!10] (contrib3) at (11,3) {
+    Mirror Ascent\\
+    Fast Convergence
+};
+
+% Optional: Multiplier update note under middle box (FIX #3)
+\node[font=\scriptsize, text width=3.5cm, align=center, text=black!70] (mult) at (5.5,2.15) {
+    multiplier: $\mu_t \leftarrow [\mu_t + \eta\, g_i(d_\pi)]_+$
+};
+
+% ============================================================================
+% BOTTOM ROW: Our framework
+% ============================================================================
+\node[block, fill=purple!30, text width=9cm, minimum height=1.5cm, font=\normalsize] (ours) at (5.5,0.3) {
+    \textbf{Dual--SPMA Framework}\\
+    Combines all three approaches
+};
+
+% ============================================================================
+% ARROWS: Papers to contributions (vertical)
+% ============================================================================
+\draw[arrow] (paper1) -- (contrib1);
+\draw[arrow] (paper2) -- (contrib2);
+\draw[arrow] (paper3) -- (contrib3);
+
+% ============================================================================
+% Arrow from Convex MDPs to SPMA with annotation
+% This shows the shaped reward reduction that connects them
+% ============================================================================
+\draw[arrow, dashed, red, bend left=15, line width=1.2pt] (contrib1.east) to 
+    node[above, font=\scriptsize, text width=2.8cm, align=center] {
+        \textbf{shaped reward}\\
+        $r_y = -y$\\
+        dual gradient:\\
+        $d_\pi - \nabla f^*(y)$
+    } (contrib3.west);
+
+% ============================================================================
+% ARROWS: Contributions to our framework (vertical)
+% ============================================================================
+\draw[arrow] (contrib1) -- (ours);
+\draw[arrow] (contrib2) -- (ours);
+\draw[arrow] (contrib3) -- (ours);
+
+\end{tikzpicture}
+\caption{%
+    \textbf{Overview of the Dual--SPMA framework.} 
+    We synthesize ideas from three recent works: (1) the Fenchel duality 
+    approach for convex MDPs \citep{zahavy2021reward}, (2) primal-dual 
+    methods for constraint handling \citep{ding2020npgpd}, and (3) mirror 
+    ascent for fast convergence \citep{asad2024fast}. The key insight is 
+    that fixing the dual variable $y$ reduces the policy step to standard 
+    RL with shaped reward $r_y = -y$, enabling us to use SPMA as the policy 
+    player while Ding et al.\ inform our dual/multiplier updates.
+}
+\label{fig:framework_overview}
+\end{figure}
+
+
+
 \textbf{Metrics.} (i) Saddle value $L(\pi,y)$ (when $f^*$ known); (ii) constraint value/violation; (iii) policy return under $r_y$; (iv) convergence of $\|\hat d_{\pi}\|_1$ (tabular) or $\|\widehat{\mathbb E}[\phi]\|$ (FA); (v) wall-clock/sample efficiency. Baselines include NPG--PD.
 
 \small
