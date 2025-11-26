@@ -1,612 +1,317 @@
-# CMPT409 Project: Convex MDP Solver with SPMA
+# cmdp_spma — Dual-SPMA for Constrained MDPs
 
-A Python implementation of a **Constrained Markov Decision Process (CMDP)** solver using **Softmax Policy Mirror Ascent (SPMA)**. This project provides a theoretically-grounded framework for solving reinforcement learning problems with constraints through convex optimization and saddle-point formulations.
-
-## Table of Contents
-
-- [Overview](#overview)
-- [Theoretical Background](#theoretical-background)
-- [Features](#features)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Project Structure](#project-structure)
-- [Usage Guide](#usage-guide)
-- [Examples](#examples)
-- [API Reference](#api-reference)
-- [Algorithm Details](#algorithm-details)
-- [Contributing](#contributing)
-- [References](#references)
-
----
-
-## Overview
-
-This repository implements a policy optimization framework for solving CMDPs, where an agent must maximize cumulative reward while satisfying constraints. The approach:
-
-1. **Reformulates CMDPs** as saddle-point problems using Lagrangian duality
-2. **Alternates between**:
-   - **Primal updates**: Policy improvement via SPMA (given dual variables)
-   - **Dual updates**: Constraint enforcement via gradient ascent
-3. **Supports both**:
-   - Tabular settings (discrete state-action spaces)
-   - Function approximation (continuous/large spaces with features)
-
-### Key Innovation: SPMA (Softmax Policy Mirror Ascent)
-
-SPMA is a mirror descent algorithm on the policy space that uses KL divergence as the Bregman divergence. It provides:
-- Theoretical convergence guarantees
-- Natural policy parameterization
-- Efficient exploration-exploitation tradeoff
-
----
-
-## Theoretical Background
-
-### CMDP Formulation
-
-A CMDP extends standard MDPs with constraints:
-
-```
-maximize   E[Σ_t γ^t r(s_t, a_t)]
-subject to E[Σ_t γ^t c_i(s_t, a_t)] ≤ b_i  for i=1,...,m
-           π ∈ Π (policy space)
-```
-
-### Saddle-Point Reformulation
-
-Using Lagrangian duality:
-
-```
-L(π, y) = E_π[Σ_t γ^t (r(s_t, a_t) - y^T c(s_t, a_t))]
-        = ⟨d_π, r_y⟩
-```
-
-where:
-- `d_π(s,a)` is the discounted state-action occupancy
-- `r_y(s,a) = r(s,a) - y^T c(s,a)` is the shaped reward
-- `y` are dual variables (Lagrange multipliers)
-
-The solution is found by solving: `min_y max_π L(π, y)`
-
-### SPMA Update Rule
-
-Given dual variables `y`, SPMA updates the policy via:
-
-```
-π_{k+1} = argmax_π [ ⟨π, ∇_π L⟩ - (1/η) D_KL(π || π_k) ]
-```
-
-where `D_KL` is the KL divergence and `η` is the step size.
-
-This translates to the practical loss function:
-
-```
-L_SPMA = E[ -Δlog π · A + (1/η) · ((exp(Δlog π) - 1) - Δlog π) ]
-```
-
-where `Δlog π = log π_new - log π_old` and `A` is the advantage function.
-
----
-
-## Submodules
-
-### `implementations/clean_spma`
-Reference implementation of the SPMA algorithm. This is **not used directly** but served as the foundation for our refactored `cmdp_spma_package`. We keep it as:
-- A reference for the original SPMA algorithm
-- Documentation of the base implementation
-- Attribution to the original work
-
----
+A self-contained implementation of **Softmax Policy Mirror Ascent (SPMA)** for solving constrained MDPs via saddle-point optimization. Includes both the policy oracle (primal player) and outer dual-ascent loops, plus an **NPG-PD baseline** for comparison.
 
 ## Features
 
-### Core Capabilities
+| Component | Description |
+|-----------|-------------|
+| **SPMA Policy Oracle** | Mirror-descent policy updates with Armijo line search |
+| **NPG-PD Baseline** | Natural Policy Gradient with Primal-Dual updates |
+| **Outer Dual Loops** | Generic dual ascent for entropy-regularized RL and constrained safety |
+| **Objective Classes** | Pluggable objectives (entropy, quadratic, Lagrangian CMDP) |
+| **Occupancy Estimators** | Tabular and feature-based discounted occupancy estimation |
+| **Shaped Reward Wrappers** | Automatic reward shaping r_y(s,a) = -y[s,a] |
 
--  **SPMA Policy Oracle**: Theoretically-grounded policy improvement
--  **Dual Variable Updates**: Constraint enforcement through gradient ascent
--  **Armijo Line Search**: Robust step size selection with backtracking
--  **GAE (Generalized Advantage Estimation)**: Low-variance advantage estimates
--  **Shaped Reward Environments**: Automatic reward transformation for constrained optimization
-
-### Supported Settings
-
-| Feature | Tabular | Function Approximation |
-|---------|---------|------------------------|
-| State Space | Discrete | Continuous/Large |
-| Action Space | Discrete | Discrete or Continuous |
-| Dual Variables | Table `y[s,a]` | Feature weights `w` |
-| Estimator | Occupancy `d(s,a)` | Feature expectations `E[φ]` |
-| Example Env | FrozenLake | Pendulum |
-
-### Neural Network Architectures
-
-- **Discrete Actor**: Softmax policy over action logits
-- **Gaussian Actor**: State-dependent mean with learned log-std
-- **Critic**: Value function approximation (MLP)
-
----
+> For theory and estimator formulas, see our project proposal (Appendix C).
 
 ## Installation
-
-### Prerequisites
-
-- Python 3.8+
-- PyTorch 1.9+
-- Gymnasium (OpenAI Gym)
-- NumPy
-
-### Install Dependencies
 
 ```bash
 pip install torch gymnasium numpy
 ```
 
-### Install Package
+## Project Structure
 
-```bash
-cd implementations/cmdp_spma_package
-pip install -e .
+```
+cmdp_spma_package/
+├── cmdp_spma/
+│   ├── __init__.py
+│   ├── helpers.py           # build_reward_table, build_uniform_cost_table, estimate_Jr_Jc
+│   ├── line_search.py       # Armijo backtracking
+│   ├── nets.py              # ActorDiscrete, ActorGaussian, Critic
+│   ├── npg_pd.py            # NPG-PD baseline (diagonal Fisher)
+│   ├── objectives.py        # EntropyRegularizedObjective, QuadraticObjective, ConstrainedSafetyObjective
+│   ├── occupancy.py         # TabularEstimator, FeatureEstimator
+│   ├── policy_oracle.py     # PolicyOracleSPMA, OracleConfig
+│   ├── rollout.py           # collect_rollouts, GAE
+│   ├── shaped_reward_env.py # TabularShapedReward, FeatureShapedReward
+│   └── spma_losses.py       # spma_actor_loss, mse_loss
+├── scripts/
+│   ├── outer_loop_demo.py
+│   ├── run_constrained_safety_npg_pd.py  # NPG-PD baseline
+│   ├── run_constrained_safety_spma.py    # SPMA for constrained safety
+│   ├── run_dual_spma_tabular.py          # Generic dual-SPMA loop
+│   ├── run_feature_example.py
+│   └── run_tabular_example.py
+├── tests/
+│   └── test_estimator.py
+└── README.md
 ```
 
 ---
 
 ## Quick Start
 
-### Tabular Example (FrozenLake)
+### 1. Basic SPMA Policy Oracle (Tabular)
 
 ```python
 import gymnasium as gym
 import numpy as np
 from cmdp_spma import PolicyOracleSPMA, OracleConfig, TabularEstimator
 
-# Setup environment
+def make_env():
+    return gym.make("FrozenLake-v1", is_slippery=False)
+
+gamma = 0.99
+env = make_env()
+nS, nA = env.observation_space.n, env.action_space.n
+y = np.zeros((nS, nA), dtype=np.float32)  # dual variable
+
+est = TabularEstimator(nS, nA, gamma)
+cfg = OracleConfig(discrete=True, steps_per_rollout=512, K_inner=3, gamma=gamma)
+oracle = PolicyOracleSPMA(make_env, est, cfg)
+
+pol, d_hat, logs = oracle.improve(y, K=3, rollout_steps=1024, seed=0)
+print("sum d_hat:", d_hat.sum())
+```
+
+### 2. Entropy-Regularized RL (Outer Dual Loop)
+
+```python
+import gymnasium as gym
+from cmdp_spma import (
+    EntropyRegularizedObjective,
+    build_reward_table,
+)
+from scripts.run_dual_spma_tabular import run_dual_spma_tabular
+
 def make_env():
     return gym.make("FrozenLake-v1", is_slippery=False)
 
 env = make_env()
-nS, nA = env.observation_space.n, env.action_space.n
-gamma = 0.99
+r_table = build_reward_table(env)
+obj = EntropyRegularizedObjective(r_table, alpha=0.1)
 
-# Initialize dual variables (constraint multipliers)
-y = np.zeros((nS, nA), dtype=np.float32)
-
-# Create occupancy estimator
-estimator = TabularEstimator(nS, nA, gamma)
-
-# Configure SPMA oracle
-config = OracleConfig(
-    discrete=True,
-    steps_per_rollout=512,
-    K_inner=3,
-    gamma=gamma
+y_final, history = run_dual_spma_tabular(
+    make_env, obj,
+    K_outer=20, gamma=0.99, alpha_y=0.5,
+    cfg_kwargs=dict(steps_per_rollout=1024, K_inner=3),
 )
-
-# Run policy improvement
-oracle = PolicyOracleSPMA(make_env, estimator, config)
-policy, d_hat, logs = oracle.improve(y, K=3, rollout_steps=1024, seed=0)
-
-print(f"Sum of occupancy: {d_hat.sum():.4f}")
-print(f"Lagrangian value: {logs['y_dot_d']:.4f}")
 ```
 
-### Function Approximation Example (Pendulum)
+### 3. Constrained Safety CMDP (SPMA)
+
+```python
+import gymnasium as gym
+from cmdp_spma import build_reward_table, build_uniform_cost_table
+from scripts.run_constrained_safety_spma import run_constrained_safety_spma
+
+def make_env():
+    return gym.make("FrozenLake-v1", is_slippery=False)
+
+env = make_env()
+r_table = build_reward_table(env)
+c_table = build_uniform_cost_table(env, bad_states=[5, 7, 11, 12], cost_bad=1.0)
+
+lam_final, history = run_constrained_safety_spma(
+    make_env,
+    reward_table=r_table,
+    cost_table=c_table,
+    tau=0.1,  # safety threshold
+    K_outer=20,
+    alpha_lambda=0.5,
+)
+```
+
+### 4. Constrained Safety CMDP (NPG-PD Baseline)
+
+```python
+from scripts.run_constrained_safety_npg_pd import run_constrained_safety_npg_pd
+
+actor, history = run_constrained_safety_npg_pd(
+    make_env=make_env,
+    reward_table=r_table,
+    cost_table=c_table,
+    tau=0.1,
+    K_outer=20,
+    npg_step=0.05,
+    beta_lambda=0.5,
+)
+```
+
+### 5. Feature-Based (Continuous Actions)
 
 ```python
 import gymnasium as gym
 import numpy as np
 from cmdp_spma import PolicyOracleSPMA, OracleConfig, FeatureEstimator
 
-# Define feature function
+def make_env():
+    return gym.make("Pendulum-v1")
+
 def phi_fn(s, a):
-    """Feature vector: [s, a, s^2, a^2]"""
     s = np.asarray(s, dtype=np.float32)
     a = np.atleast_1d(a).astype(np.float32)
     return np.concatenate([s, a, s**2, a**2])
 
-def make_env():
-    return gym.make("Pendulum-v1")
-
-gamma = 0.99
-d = 3 + 1 + 3 + 1  # feature dimension
-w = np.zeros(d, dtype=np.float32)  # dual weights
-y = (phi_fn, w)  # dual variable tuple
-
-# Create feature expectation estimator
-estimator = FeatureEstimator(phi_fn, d, gamma)
-
-# Configure for continuous actions
-config = OracleConfig(
-    discrete=False,
-    steps_per_rollout=2048,
-    K_inner=3,
-    gamma=gamma
-)
-
-# Run policy improvement
-oracle = PolicyOracleSPMA(make_env, estimator, config)
-policy, ephi_hat, logs = oracle.improve(y, K=3, rollout_steps=4096, seed=0)
-
-print(f"Feature expectation norm: {np.linalg.norm(ephi_hat):.4f}")
-```
-
----
-
-## Project Structure
-
-```
-CMPT409-Project/
-├── README.md                          # This file
-├── .gitmodules                        # Git submodules configuration
-│
-├── implementations/
-│   ├── clean_spma/                    # External SPMA reference (submodule)
-│   │
-│   └── cmdp_spma_package/             # Main implementation
-│       ├── README.md                  # Package-specific docs
-│       ├── cmdp_spma/                 # Core library
-│       │   ├── __init__.py           # Package exports
-│       │   ├── policy_oracle.py      # SPMA policy oracle (main class)
-│       │   ├── spma_losses.py        # SPMA loss functions
-│       │   ├── line_search.py        # Armijo backtracking
-│       │   ├── nets.py               # Neural network architectures
-│       │   ├── rollout.py            # Trajectory collection & GAE
-│       │   ├── occupancy.py          # Occupancy/feature estimators
-│       │   └── shaped_reward_env.py  # Environment wrappers
-│       │
-│       ├── scripts/                   # Example scripts
-│       │   ├── run_tabular_example.py
-│       │   ├── run_feature_example.py
-│       │   └── outer_loop_demo.py    # Full CMDP solver demo
-│       │
-│       └── tests/                     # Unit tests
-│           └── test_estimator.py
-```
-
----
-
-## Usage Guide
-
-### 1. Define Your Environment
-
-```python
-def make_env():
-    return gym.make("YourEnvironment-v1")
-```
-
-### 2. Choose Tabular or Function Approximation
-
-#### Tabular (Discrete S × A)
-
-```python
-env = make_env()
-nS = env.observation_space.n
-nA = env.action_space.n
-y = np.zeros((nS, nA), dtype=np.float32)
-estimator = TabularEstimator(nS, nA, gamma)
-config = OracleConfig(discrete=True, ...)
-```
-
-#### Function Approximation (Continuous/Large)
-
-```python
-def phi_fn(s, a):
-    # Return feature vector
-    return np.array([...])
-
-d = 10  # feature dimension
+d = (3 + 1 + 3 + 1)
 w = np.zeros(d, dtype=np.float32)
 y = (phi_fn, w)
-estimator = FeatureEstimator(phi_fn, d, gamma)
-config = OracleConfig(discrete=False, ...)
-```
 
-### 3. Configure the Oracle
+gamma = 0.99
+est = FeatureEstimator(phi_fn, d, gamma)
+cfg = OracleConfig(discrete=False, steps_per_rollout=2048, K_inner=3, gamma=gamma)
+oracle = PolicyOracleSPMA(make_env, est, cfg)
 
-```python
-config = OracleConfig(
-    device="cpu",              # "cpu" or "cuda"
-    gamma=0.99,                # Discount factor
-    lam=0.95,                  # GAE lambda
-    inv_eta=5.0,               # 1/η in SPMA (regularization strength)
-    max_grad_norm=1.0,         # Gradient clipping
-    critic_lr=3e-4,            # Critic learning rate
-    K_inner=5,                 # SPMA iterations per call
-    steps_per_rollout=2048,    # Steps per rollout
-    discrete=True,             # Discrete or continuous actions
-    hidden=(64, 64),           # Hidden layer sizes
-    # Armijo line search parameters
-    armijo_c=1e-4,
-    armijo_beta=0.5,
-    armijo_init=1.0,
-    armijo_max_steps=15
-)
-```
-
-### 4. Run the Policy Oracle
-
-```python
-oracle = PolicyOracleSPMA(make_env, estimator, config)
-policy, d_hat, logs = oracle.improve(
-    y,                  # Dual variables
-    K=5,                # Number of SPMA iterations
-    rollout_steps=4096, # Total environment steps
-    seed=42             # Random seed
-)
-```
-
-### 5. Update Dual Variables (Outer Loop)
-
-For a simple quadratic regularization `f*(y) = (λ/2)||y||²`:
-
-```python
-lam = 0.1       # Regularization strength
-alpha = 0.5     # Dual step size
-
-# Gradient of Lagrangian w.r.t. y
-grad_y = d_hat - lam * y
-
-# Dual ascent step
-y = y + alpha * grad_y
-```
-
----
-
-## Examples
-
-### Example 1: Single Policy Improvement
-
-Run a single policy improvement step on FrozenLake:
-
-```bash
-cd implementations/cmdp_spma_package
-python scripts/run_tabular_example.py
-```
-
-**Expected Output:**
-```
-sum d_hat: 0.995
-y·d: 0.0000
-```
-
-### Example 2: Continuous Control
-
-Test SPMA on Pendulum with feature approximation:
-
-```bash
-python scripts/run_feature_example.py
-```
-
-**Expected Output:**
-```
-||E[phi]||: 1.234
-y·d: 0.0000
-```
-
-### Example 3: Full CMDP Solver
-
-Run the outer-loop demo with dual variable updates:
-
-```bash
-python scripts/outer_loop_demo.py
-```
-
-**Expected Output:**
-```
-[iter 0] sum d=0.998, y·d=0.0012, L=0.0011
-[iter 1] sum d=0.995, y·d=0.0034, L=0.0029
-[iter 2] sum d=0.997, y·d=0.0052, L=0.0045
-[iter 3] sum d=0.996, y·d=0.0068, L=0.0058
-[iter 4] sum d=0.998, y·d=0.0079, L=0.0067
-Done.
+pol, ephi_hat, logs = oracle.improve(y, K=3, rollout_steps=4096, seed=0)
+print("||E[phi]||:", (ephi_hat**2).sum()**0.5)
 ```
 
 ---
 
 ## API Reference
 
-### PolicyOracleSPMA
+### Objective Classes
 
-**Main class for policy improvement under shaped rewards.**
-
-```python
-class PolicyOracleSPMA:
-    def __init__(
-        self,
-        env_maker: Callable[[], gym.Env],
-        estimator: Union[TabularEstimator, FeatureEstimator],
-        cfg: OracleConfig
-    )
-```
-
-**Methods:**
-
-```python
-def improve(
-    self,
-    y: Union[np.ndarray, Tuple[Callable, np.ndarray]],
-    K: Optional[int] = None,
-    rollout_steps: Optional[int] = None,
-    seed: Optional[int] = None
-) -> Tuple[Dict, np.ndarray, Dict]:
-    """
-    Perform K iterations of SPMA under shaped reward r_y.
-    
-    Args:
-        y: Dual variables (table or (phi_fn, w) tuple)
-        K: Number of SPMA iterations (default: cfg.K_inner)
-        rollout_steps: Total environment steps (default: cfg.steps_per_rollout)
-        seed: Random seed for reproducibility
-    
-    Returns:
-        policy_snapshot: Dict of policy network parameters
-        d_hat: Occupancy estimate or feature expectations
-        logs: Dict with training metrics
-    """
-```
-
-### OracleConfig
-
-**Configuration dataclass for the policy oracle.**
-
-```python
-@dataclass
-class OracleConfig:
-    device: str = "cpu"
-    gamma: float = 0.99              # Discount factor
-    lam: float = 0.95                # GAE lambda
-    inv_eta: float = 5.0             # 1/η (SPMA regularization)
-    max_grad_norm: float = 1.0       # Gradient clipping
-    armijo_c: float = 1e-4           # Armijo sufficient decrease
-    armijo_beta: float = 0.5         # Armijo backtrack factor
-    armijo_init: float = 1.0         # Initial step size
-    armijo_max_steps: int = 15       # Max backtracking steps
-    critic_lr: float = 3e-4          # Critic learning rate
-    K_inner: int = 5                 # SPMA iterations
-    steps_per_rollout: int = 2048    # Steps per rollout
-    discrete: bool = True            # Discrete vs continuous actions
-    hidden: Tuple[int,int] = (64,64) # MLP hidden sizes
-```
+| Class | Problem | Conjugate f*(y) |
+|-------|---------|-----------------|
+| `EntropyRegularizedObjective` | max J_r + α H(d) | α log Σ exp((y+r)/α) |
+| `QuadraticObjective` | min ‖d‖² | (λ/2) ‖y‖² |
+| `ConstrainedSafetyObjective` | max J_r s.t. J_c ≤ τ | Lagrangian with scalar λ |
 
 ### Estimators
 
-**TabularEstimator**
+| Class | Use Case | Output |
+|-------|----------|--------|
+| `TabularEstimator` | Discrete S×A | d_hat[s,a] occupancy table |
+| `FeatureEstimator` | Function approx | E[φ(s,a)] feature expectations |
 
-```python
-class TabularEstimator:
-    def __init__(self, nS: int, nA: int, gamma: float)
-    
-    def update_from_batch(self, obs, acts, dones):
-        """Accumulate occupancy from trajectory batch."""
-    
-    def value(self) -> np.ndarray:
-        """Return current occupancy estimate d[s,a]."""
-    
-    def y_dot_d(self, y_table: np.ndarray) -> float:
-        """Compute y^T d (Lagrangian value)."""
-```
+Both have a `reset()` method to clear data for per-iteration estimation.
 
-**FeatureEstimator**
+### Policy Updates
 
-```python
-class FeatureEstimator:
-    def __init__(self, phi_fn: Callable, d: int, gamma: float)
-    
-    def update_from_batch(self, obs, acts, dones):
-        """Accumulate feature expectations from batch."""
-    
-    def value(self) -> np.ndarray:
-        """Return E[phi(s,a)]."""
-    
-    def y_dot_d(self, w: np.ndarray) -> float:
-        """Compute w^T E[phi]."""
-```
+| Method | Algorithm | Update Rule |
+|--------|-----------|-------------|
+| `PolicyOracleSPMA.improve()` | SPMA | Mirror descent + Armijo |
+| `npg_actor_step_diag()` | NPG-PD | θ ← θ + α F⁻¹ ∇J |
 
 ---
 
 ## Algorithm Details
 
-### SPMA Loss Function
-
-The SPMA loss at each iteration is:
+### SPMA Actor Loss
 
 ```
-L(θ) = E_batch[ -Δlog π(a|s;θ) · A(s,a) + (1/η) · Bregman(π_new || π_old) ]
+L = E[ -Δlogπ · A + (1/η) · ((exp(Δlogπ) - 1) - Δlogπ) ]
 ```
 
-where:
-- `Δlog π = log π_new - log π_old` is the log-ratio
-- `A(s,a)` is the advantage function (from GAE)
-- `Bregman(p||q) = (exp(Δlog π) - 1) - Δlog π` is the KL Bregman divergence
-- `η` is the step size (inverse of `inv_eta`)
+where `Δlogπ = log π_new - log π_old`. This is the mirror descent update with KL divergence Bregman regularization.
 
-### Armijo Backtracking
-
-To ensure descent, we use Armijo line search:
-
-1. Compute gradient `g` and descent direction `d = -g`
-2. Try step sizes `α = α₀, α₀β, α₀β², ...`
-3. Accept first `α` satisfying: `L(θ + αd) ≤ L(θ) + c·α·g^T d`
-4. If no step accepted after max iterations, take tiny gradient step
-
-### GAE (Generalized Advantage Estimation)
-
-Advantages are computed using GAE with parameters `γ` (discount) and `λ` (bias-variance):
+### NPG-PD Update
 
 ```
-A_t = Σ_{l=0}^∞ (γλ)^l δ_{t+l}
+θ ← θ + α · F_diag⁻¹ · ∇_θ J_{r_λ}(π)
+λ ← [λ + β (J_c(π) - τ)]_+
 ```
 
-where `δ_t = r_t + γV(s_{t+1}) - V(s_t)` is the TD error.
+where `F_diag` is the diagonal Fisher information matrix and `r_λ = r - λc`.
 
-### Occupancy Estimation
+### Outer Dual Loop
 
-**Unbiased discounted occupancy estimator:**
-
+For entropy-regularized RL:
 ```
-d̂(s,a) = (1-γ)/N · Σ_i Σ_t γ^t · 1{(s_t, a_t) = (s,a)}
+y_{k+1} = y_k + α_y (d̂_π_k - ∇f*(y_k))
 ```
 
-where `N` is the number of episodes.
+For constrained safety (Lagrangian):
+```
+λ_{k+1} = [λ_k + α_λ (J_c(π_k) - τ)]_+
+```
 
-**Properties:**
-- Unbiased: `E[d̂(s,a)] = d_π(s,a)`
-- Normalizes approximately to 1: `Σ_{s,a} d̂(s,a) ≈ 1`
+### Shaped Reward
+
+- **Tabular:** `r_y(s,a) = -y[s,a]`
+- **Feature-based:** `r_y(s,a) = -φ(s,a)ᵀ w`
 
 ---
 
-## Contributing
+## Configuration
 
-Contributions are welcome! Please follow these guidelines:
+### OracleConfig Parameters
 
-1. **Fork the repository** and create a feature branch
-2. **Write tests** for new functionality
-3. **Follow the code style**: Use type hints, docstrings, and consistent formatting
-4. **Update documentation** as needed
-5. **Submit a pull request** with a clear description
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `gamma` | 0.99 | Discount factor |
+| `lam` | 0.95 | GAE lambda |
+| `inv_eta` | 5.0 | 1/η for SPMA Bregman term |
+| `K_inner` | 5 | Inner SPMA iterations per outer step |
+| `steps_per_rollout` | 2048 | Environment steps per rollout |
+| `persistent_policy` | True | Keep actor/critic across outer iterations |
+| `hidden` | (64, 64) | MLP hidden layer sizes |
 
-### Development Setup
+---
+
+## Logging & Metrics
+
+The outer loops track:
+
+| Metric | Description |
+|--------|-------------|
+| `L` | Saddle value: y·d - f*(y) |
+| `f_d` | Primal objective: f(d_hat) |
+| `Jr` | Return under original reward |
+| `Jc` | Return under cost (for CMDP) |
+| `constraint_violation` | J_c - τ |
+| `wall_time` | Cumulative runtime |
+
+---
+
+## Tests
+
+Run all tests:
 
 ```bash
-git clone https://github.com/yourusername/CMPT409-Project.git
-cd CMPT409-Project/implementations/cmdp_spma_package
-pip install -e .
+cd cmdp_spma_package
 python -m pytest tests/
 ```
+
+Or run directly:
+
+```python
+from tests.test_estimator import run_all_tests
+run_all_tests()
+```
+
+Available tests:
+- `test_simple_sum_to_one` — Occupancy sums to ~1
+- `test_feature_estimator_indicator` — φ(s,a) = e_i recovers correct coordinate
+- `test_shaped_reward_affects_returns` — Shaped reward r_y = -y works correctly
+- `test_spma_bandit_convergence` — Policy converges to best arm in bandit
+
+---
+
+## Comparison: SPMA vs NPG-PD
+
+| Aspect | SPMA | NPG-PD |
+|--------|------|--------|
+| **Primal update** | Mirror descent (KL Bregman) | Natural gradient (Fisher) |
+| **Step size** | Armijo line search | Fixed α with F⁻¹ scaling |
+| **Theory** | Convex optimization on d | Policy gradient on θ |
+| **Convergence** | O(1/√K) for convex f | O(1/√K) for smooth J |
+
+Use `run_constrained_safety_spma.py` and `run_constrained_safety_npg_pd.py` with the same reward/cost tables to compare empirically.
 
 ---
 
 ## References
 
-### Key Papers
-<!-- 
-1. **Mirror Descent in Saddle-Point Problems**  
-   Nemirovski, A. (2004). *Prox-method with rate of convergence O(1/t) for variational inequalities with Lipschitz continuous monotone operators and smooth convex-concave saddle point problems.*
-
-2. **Policy Mirror Descent**  
-   Tomar, M., et al. (2020). *Mirror descent policy optimization.*
-
-3. **Constrained MDPs**  
-   Altman, E. (1999). *Constrained Markov decision processes.*
-
-4. **Convex MDP Duality**  
-   Puterman, M. L. (1994). *Markov decision processes: Discrete stochastic dynamic programming.*
-
-### Related Work
-
-- **PPO (Proximal Policy Optimization)**: Trust-region-free policy optimization
-- **TRPO (Trust Region Policy Optimization)**: Natural gradient with KL constraint
-- **CPO (Constrained Policy Optimization)**: Safe RL with hard constraints
-- **Lagrangian Methods**: Primal-dual approaches for constrained optimization -->
+- **SPMA:** Softmax Policy Mirror Ascent for convex MDPs
+- **NPG-PD:** Ding et al., "Natural Policy Gradient Primal-Dual Method for Constrained Markov Decision Processes"
+- **Occupancy estimation:** See project proposal Appendix C
 
 ---
 
 ## License
 
-This project is part of CMPT409 coursework. Please check with the course instructor regarding licensing and usage rights.
-
----
-
-## Acknowledgments
-
----
-
+MIT
