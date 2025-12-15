@@ -1,0 +1,1388 @@
+\documentclass[10pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[margin=0.6in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\usepackage{hyperref}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{colortbl}
+
+% Colors
+\definecolor{speakercolor}{RGB}{0,102,204}
+\definecolor{slidecolor}{RGB}{128,0,128}
+\definecolor{proncolor}{RGB}{0,128,0}
+\definecolor{qcolor}{RGB}{180,0,0}
+\definecolor{acolor}{RGB}{0,100,0}
+\definecolor{sectioncolor}{RGB}{0,51,102}
+\definecolor{lightblue}{RGB}{230,240,255}
+\definecolor{lightred}{RGB}{255,235,235}
+
+% Custom commands
+\newcommand{\pron}[1]{\textcolor{proncolor}{\textsf{[#1]}}}
+\newcommand{\question}[1]{\textcolor{qcolor}{\textbf{Q: #1}}}
+\newcommand{\answer}[1]{\textcolor{acolor}{A: #1}}
+
+% Slide header command
+\newcommand{\slideheader}[2]{%
+\noindent\fcolorbox{blue!40}{blue!10}{\parbox{\dimexpr\textwidth-2\fboxsep-2\fboxrule}{%
+\textcolor{slidecolor}{\textbf{\large Slide #1 --- \textit{#2}}}}}
+\vspace{0.3em}
+}
+
+% Column widths
+\newcolumntype{L}{>{\raggedright\arraybackslash}p{0.48\textwidth}}
+\newcolumntype{R}{>{\raggedright\arraybackslash}p{0.48\textwidth}}
+
+% Header/Footer
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Dual--SPMA Speaker Script with Q\&A}
+\lhead{CMPT 882}
+\rfoot{Page \thepage}
+
+\title{\textbf{Dual--SPMA Framework for Convex MDPs}\\[0.5em]
+\Large Speaker Script with Q\&A Bank\\[0.3em]
+\normalsize Two-Column Format: Script + Anticipated Questions}
+\author{Pegah Aryadoost \and Danielle Nguyen \and Shervin Khamooshian \and Ahmed Magd}
+\date{December 2025}
+
+\begin{document}
+
+\maketitle
+
+%============================================================================
+\section*{Speaker Assignments}
+%============================================================================
+\begin{center}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Speaker} & \textbf{Section} & \textbf{Slides} \\
+\hline
+Pegah & Background \& Motivation & 1--9 \\
+Danielle & Problem Formulation \& Fenchel Duality & 10--17 \\
+Shervin & Related Work \& Our Method & 18--27 \\
+Ahmed & Experiments \& Conclusion & 28--36 \\
+\hline
+\end{tabular}
+\end{center}
+
+%============================================================================
+\section*{Notation Pronunciation Guide}
+%============================================================================
+
+\begin{tcolorbox}[colback=green!5, colframe=green!50!black, title=\textbf{Pronunciation Guide}]
+\small
+\textbf{Greek Letters:}
+$\pi$ \pron{pie} (policy) ~|~
+$\gamma$ \pron{gamma} (discount) ~|~
+$\rho$ \pron{rho} (initial dist.) ~|~
+$\alpha$ \pron{alpha} (step size) ~|~
+$\beta$ \pron{beta} (dual step) ~|~
+$\lambda$ \pron{lambda} (Lagrange mult.) ~|~
+$\mu$ \pron{mu} (penalty weight) ~|~
+$\tau$ \pron{tau} (threshold) ~|~
+$\eta$ \pron{eta} (learning rate) ~|~
+$\omega$ \pron{omega} (dual params) ~|~
+$\phi$ \pron{phi} (features)
+
+\textbf{Calligraphic:}
+$\mathcal{S}$ \pron{script-S} (states) ~|~
+$\mathcal{A}$ \pron{script-A} (actions) ~|~
+$\mathcal{D}$ \pron{script-D} (occupancy set)
+
+\textbf{Functions:}
+$f^*$ \pron{f-star} (conjugate) ~|~
+$\nabla$ \pron{nabla/gradient} ~|~
+$\sup$ \pron{soup/supremum} ~|~
+$\langle \cdot, \cdot \rangle$ \pron{inner product} ~|~
+$[\cdot]_+$ \pron{positive part}
+
+\textbf{Key Terms:}
+$d_\pi$ \pron{d-pi} (occupancy) ~|~
+$J(\pi)$ \pron{J of pi} (return) ~|~
+$L(\pi,y)$ \pron{Lagrangian} ~|~
+$r_y$ \pron{r-sub-y} (shaped reward) ~|~
+$\hat{d}_\pi$ \pron{d-hat-pi} (estimated occupancy)
+\end{tcolorbox}
+
+\newpage
+
+%============================================================================
+\section*{\textcolor{sectioncolor}{Section 1: Background \& Motivation (Pegah, Slides 1--9)}}
+%============================================================================
+
+%--- SLIDE 1 ---
+\slideheader{1}{A Dual--SPMA Framework for Convex MDPs}
+
+\noindent
+\begin{tabular}{@{}L|R@{}}
+\cellcolor{lightblue}\textbf{Speaker Script (Pegah)} & \cellcolor{lightred}\textbf{Related Q\&A} \\
+\hline
+\small
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``Hi everyone, thanks for being here. I'm Pegah, and this project is joint work with Ahmed, Shervin, and Danielle from SFU's School of Computing Science.''
+  \item ``Our title is `A Dual--SPMA Framework for Convex MDPs'.''
+  \item ``The one-sentence claim: \textbf{combining Fenchel duality with a fast policy optimizer, SPMA, gives a simple and fairly competitive way to solve convex MDPs}.''
+  \item ``We'll compare this `Dual--SPMA' recipe against a strong baseline called NPG--PD.''
+\end{itemize}
+&
+\small
+\question{What's the main takeaway?}
+
+\answer{If you take the convex-MDP framework of Zahavy et al.\ and plug in SPMA as the policy optimizer, you get a simple ``Dual--SPMA'' recipe that (i) is easy to implement as shaped-reward RL, and (ii) performs competitively with NPG--PD on constrained safety tasks.}
+
+\vspace{0.5em}
+\question{Is Dual--SPMA supposed to \textit{beat} NPG--PD?}
+
+\answer{No, we show SPMA is a \textbf{viable policy player} inside the convex-MDP dual framework: it's stable, respects constraints, and gives comparable reward.}
+\\
+\end{tabular}
+
+\vspace{1em}
+
+%--- SLIDE 2 ---
+\slideheader{2}{Outline}
+
+\noindent
+\begin{tabular}{@{}L|R@{}}
+\cellcolor{lightblue}\textbf{Speaker Script (Pegah)} & \cellcolor{lightred}\textbf{Related Q\&A} \\
+\hline
+\small
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``Here's the plan for the next 20--25 minutes.''
+  \item ``First, I'll quickly review basic RL background.''
+  \item ``Then I'll motivate \textbf{convex MDPs}---why we care about them beyond standard RL.''
+  \item ``Danielle: core math (Fenchel duality $\to$ saddle-point).''
+  \item ``Shervin: related work and Dual--SPMA method.''
+  \item ``Ahmed: experiments and results.''
+  \item ``Finally: takeaways and future work.''
+\end{itemize}
+&
+\small
+\question{Why compare against NPG--PD specifically? Why not PPO or TRPO?}
+
+\answer{Our work is about \textbf{convex objectives \& dual variables}, not generic performance on Atari. NPG--PD is a principled \textit{primal--dual} algorithm specifically designed for constrained MDPs, with guarantees on both optimality and constraint violation. It also uses a geometry-aware policy update (natural gradient), which makes the comparison with SPMA conceptually clean. PPO/TRPO are great empirically, but they're not formulated directly as primal--dual CMDP algorithms.}
+\\
+\end{tabular}
+
+\vspace{1em}
+
+%--- SLIDE 3 ---
+\slideheader{3}{What is Reinforcement Learning?}
+
+\noindent
+\begin{tabular}{@{}L|R@{}}
+\cellcolor{lightblue}\textbf{Speaker Script (Pegah)} & \cellcolor{lightred}\textbf{Related Q\&A} \\
+\hline
+\small
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``Let's start with a quick refresh on RL.''
+  \item ``In RL, an \textbf{agent} interacts with an \textbf{environment} repeatedly over time.''
+  \item ``At each time step $t$ \pron{t}:
+  (1) observe state $s_t$ \pron{s-sub-t},
+  (2) choose action $a_t$ \pron{a-sub-t},
+  (3) receive reward $r_t$ \pron{r-sub-t},
+  (4) transition to $s_{t+1}$ \pron{s-sub-t-plus-one}.''
+  \item ``Goal: learn a policy that maximizes long-term reward.''
+\end{itemize}
+&
+\small
+\textit{(Basic RL background---unlikely to get technical questions here.)}
+
+\vspace{0.5em}
+\question{What's the difference between $y$ and $\lambda$?}
+
+\answer{$y$ \pron{y} is the general Fenchel dual variable over state--action pairs. $\lambda$ \pron{lambda} is the scalar Lagrange multiplier for CMDP safety constraints. In the constrained case: $y_\lambda(s,a) = \lambda c(s,a) - r(s,a)$.}
+\\
+\end{tabular}
+
+\vspace{1em}
+
+%--- SLIDE 4 ---
+\slideheader{4}{Markov Decision Process (MDP): Formal Definition}
+
+\noindent
+\begin{tabular}{@{}L|R@{}}
+\cellcolor{lightblue}\textbf{Speaker Script (Pegah)} & \cellcolor{lightred}\textbf{Related Q\&A} \\
+\hline
+\small
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``Formally, the environment is a \textbf{Markov Decision Process}.''
+  \item ``MDP: $(\mathcal{S}, \mathcal{A}, P, r, \gamma, \rho)$ \pron{script-S, script-A, P, r, gamma, rho}''
+  \item ``$\mathcal{S}$: state space; $\mathcal{A}$: action space''
+  \item ``$P(s' \mid s, a)$ \pron{P of s-prime given s, a}: transition probability''
+  \item ``$r(s,a)$: reward; $\gamma$ \pron{gamma}: discount factor (0 to 1)''
+  \item ``$\rho(s)$: initial state distribution''
+  \item ``Policy $\pi(a \mid s)$ \pron{pi of a given s}: probability distribution over actions''
+\end{itemize}
+&
+\small
+\question{What assumptions do you need for your convex MDP formulation?}
+
+\answer{We assume a discounted MDP with $\gamma < 1$, bounded reward and cost, and that we restrict to stationary policies. For convexity, we require $f$ to be proper, closed, and convex on the occupancy polytope $\mathcal{D}$. For the Fenchel reduction, we also need standard conditions that guarantee the biconjugate equality and existence of a saddle point---essentially the Fenchel--Moreau assumptions.}
+\\
+\end{tabular}
+
+\vspace{1em}
+
+%--- SLIDE 5 ---
+\slideheader{5}{Trajectory and Return}
+
+\noindent
+\begin{tabular}{@{}L|R@{}}
+\cellcolor{lightblue}\textbf{Speaker Script (Pegah)} & \cellcolor{lightred}\textbf{Related Q\&A} \\
+\hline
+\small
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``Running a policy gives a \textbf{trajectory}: sequence of states, actions, rewards.''
+  \item ``$s_0 \to a_0 \to r_0 \to s_1 \to \ldots$''
+  \item ``The \textbf{discounted return}:
+  $J(\pi) = \mathbb{E}_\pi\left[ \sum_{t=0}^{\infty} \gamma^t r(s_t, a_t) \right]$
+  \pron{J of pi equals E-sub-pi of the sum...}''
+  \item ``Classical RL objective: find $\pi^*$ \pron{pi-star} that maximizes this.''
+\end{itemize}
+&
+\small
+\question{Can you restate the key identity relating $J(\pi)$ and $d_\pi$?}
+
+\answer{Yes: we define
+\[d_\pi(s,a) = (1-\gamma)\sum_{t=0}^{\infty} \gamma^t \Pr_\pi(s_t=s, a_t=a).\]
+Then
+\[\langle r, d_\pi \rangle = \sum_{s,a} r(s,a)\,d_\pi(s,a) = (1-\gamma)J(\pi).\]
+So up to the constant factor $1-\gamma$, the RL objective is just a linear function of the occupancy measure.}
+\\
+\end{tabular}
+
+\vspace{1em}
+
+%--- SLIDE 6 ---
+\slideheader{6}{Occupancy Measure: Where the Policy Spends Time}
+
+\noindent
+\begin{tabular}{@{}L|R@{}}
+\cellcolor{lightblue}\textbf{Speaker Script (Pegah)} & \cellcolor{lightred}\textbf{Related Q\&A} \\
+\hline
+\small
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``Now we introduce the \textbf{discounted occupancy measure}.''
+  \item ``$d_\pi(s,a) = (1-\gamma) \sum_{t=0}^{\infty} \gamma^t \Pr_\pi(s_t = s, a_t = a)$ \pron{d-sub-pi of s, a...}''
+  \item ``Intuitively: \textbf{normalized discounted frequency} of visiting $(s,a)$ under $\pi$.''
+  \item ``$(1-\gamma)$ normalizes so $\sum_{s,a} d_\pi(s,a) = 1$.''
+  \item ``Think of $d_\pi$ as a heatmap over states and actions.''
+\end{itemize}
+&
+\small
+\question{Why introduce occupancy measures at all? Why not just work with $J(\pi)$?}
+
+\answer{Because in terms of policy parameters, $J(\pi)$ is generally non-convex. In terms of occupancy, return is \textbf{linear}: $\langle r, d_\pi \rangle = (1-\gamma)J(\pi)$. Many interesting extras (entropy, penalties, constraints) are convex in $d$. The set of valid occupancies is a convex polytope defined by linear flow constraints. So in $d$-space we get a clean convex program: minimize a convex $f(d)$ over a convex set $\mathcal{D}$.}
+
+\vspace{0.3em}
+\question{What exactly is $\mathcal{D}$, the set of feasible occupancies?}
+
+\answer{$\mathcal{D}$ is the set of $d \in \mathbb{R}^{|\mathcal{S}||\mathcal{A}|}$ that satisfy the Bellman flow constraints plus non-negativity: for every state $s$,
+\[\sum_a d(s,a) = (1-\gamma)\rho(s) + \gamma \sum_{s',a'} P(s|s',a')\,d(s',a'), \quad d(s,a) \ge 0.\]
+This says ``discounted occupancy flowing \textit{into} a state equals initial occupancy plus discounted flow from other states.'' It's a convex polytope.}
+\\
+\end{tabular}
+
+\vspace{1em}
+
+%--- SLIDE 7 ---
+\slideheader{7}{Key Identity: RL is Linear in Occupancy}
+
+\noindent
+\begin{tabular}{@{}L|R@{}}
+\cellcolor{lightblue}\textbf{Speaker Script (Pegah)} & \cellcolor{lightred}\textbf{Related Q\&A} \\
+\hline
+\small
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``The \textbf{fundamental identity}:''
+  \item ``$\langle r, d_\pi \rangle = \sum_{s,a} r(s,a)\, d_\pi(s,a) = (1-\gamma) J(\pi)$''
+  \item ``So the RL objective is simply a linear function of $d_\pi$.''
+  \item ``However, many interesting objectives are \textbf{not} linear in $d_\pi$:''
+  \item ``Safety constraints: $\langle c, d_\pi \rangle \le \tau$''
+  \item ``Imitation learning (match expert occupancy)''
+  \item ``Exploration bonuses (entropy of $d_\pi$)''
+  \item ``That's where \textbf{convex MDPs} come in.''
+\end{itemize}
+&
+\small
+\question{Is there a 1--1 correspondence between policies and occupancy measures?}
+
+\answer{Under mild regularity conditions (e.g., communicating MDP, $\gamma < 1$), each stationary policy has a unique discounted occupancy measure, and each valid occupancy in $\mathcal{D}$ corresponds to at least one stationary policy (you can recover $\pi(a|s) = d(s,a)/\sum_{a'} d(s,a')$ where the denominator is nonzero). So working in $d$-space is equivalent, up to degeneracies.}
+
+\vspace{0.3em}
+\question{Why do you call $f(d)$ ``convex'' when there's a minus reward term $-\langle r, d \rangle$?}
+
+\answer{Because $-\langle r, d \rangle$ is linear in $d$, and linear functions are both convex and concave. When we add convex terms like entropy or penalties, the sum stays convex. So all the examples on the ``Convex MDP: Examples'' slide fit into ``convex $f$'' without breaking anything.}
+\\
+\end{tabular}
+
+\vspace{1em}
+
+%--- SLIDE 8 ---
+\slideheader{8}{Why Convex MDPs?}
+
+\noindent
+\begin{tabular}{@{}L|R@{}}
+\cellcolor{lightblue}\textbf{Speaker Script (Pegah)} & \cellcolor{lightred}\textbf{Related Q\&A} \\
+\hline
+\small
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``Linear RL is great if all we care about is maximizing reward.''
+  \item ``But in practice we often care about more:''
+  \item ``\textbf{Enforce safety} constraints''
+  \item ``\textbf{Match expert behaviour} in imitation learning''
+  \item ``\textbf{Encourage exploration} or control risk''
+  \item ``Convex MDPs: instead of maximizing linear $\langle r, d_\pi \rangle$, we \textbf{minimize convex} $f(d_\pi)$.''
+  \item ``Challenge: optimizing over $d$ is hard---dimension $|\mathcal{S}||\mathcal{A}|$, complicated polytope.''
+  \item ``Our approach: \textbf{Fenchel duality} $\to$ \textbf{min--max game} $\to$ shaped-reward RL.''
+\end{itemize}
+&
+\small
+\question{Why do we even care about \textit{convex} MDPs instead of just standard RL?}
+
+\answer{Standard RL maximizes a linear function of the occupancy measure---expected return---so it's great when you only care about reward. Many real problems add structure: safety constraints, exploration terms, risk penalties, imitation losses, etc. Many of those can be written as convex functionals of the occupancy $d_\pi$. Convex MDPs give a unified way to handle these goals while preserving nice optimization properties like existence of a saddle point.}
+
+\vspace{0.3em}
+\question{How is this different from just ``constrained RL with a Lagrange multiplier''?}
+
+\answer{Classic constrained RL focuses on a particular structure: reward plus linear constraints. Convex MDPs are more general: you minimize an arbitrary convex function $f(d_\pi)$ over the convex occupancy polytope. Constrained RL is one example where $f$ adds a penalty or indicator for constraint violations; entropy-regularized RL and some imitation objectives are \textit{other} examples. Our framework---and the Fenchel duality step---work for all of them, not just linear constraints.}
+\\
+\end{tabular}
+
+\vspace{1em}
+
+%--- SLIDE 9 ---
+\slideheader{9}{Convex MDP: Examples}
+
+\noindent
+\begin{tabular}{@{}L|R@{}}
+\cellcolor{lightblue}\textbf{Speaker Script (Pegah)} & \cellcolor{lightred}\textbf{Related Q\&A} \\
+\hline
+\small
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``Examples of convex MDP objectives:''
+  \item ``Standard RL: $f(d) = -\langle r, d \rangle$ (linear, hence convex)''
+  \item ``\textbf{Entropy-regularized RL}: $f(d) = -\langle r, d \rangle + \alpha \sum_{s,a} d(s,a) \log d(s,a)$''
+  \item ``\textbf{Constrained safety}: $f(d) = -\langle r, d \rangle + \mu \max\{0, \langle c, d \rangle - \tau\}$''
+  \item ``Here $c$: cost, $\tau$ \pron{tau}: threshold, $\mu$ \pron{mu}: penalty weight''
+  \item ``All three are \textbf{convex functions of occupancy}.''
+  \item ``Next: Danielle shows \textbf{Fenchel duality}.''
+\end{itemize}
+&
+\small
+\question{Why use $\mu$ for penalty weight instead of $\lambda$?}
+
+\answer{We intentionally use $\mu$ there to distinguish a \textbf{fixed penalty weight} in a penalized objective from the \textbf{Lagrange multiplier} $\lambda$ that evolves as a dual variable. This avoids confusion between ``tunable hyperparameter'' and ``optimization variable.''}
+
+\vspace{0.3em}
+\question{What's the difference between $y$ and $\lambda$?}
+
+\answer{$y$: general Fenchel dual variable over state--action pairs. $\lambda$: scalar Lagrange multiplier for CMDP constraints. In constrained case: $y_\lambda(s,a) = \lambda c(s,a) - r(s,a)$.}
+\\
+\end{tabular}
+
+\newpage
+%============================================================================
+\section*{\textcolor{sectioncolor}{Section 2: Problem Formulation \& Fenchel Duality (Danielle, Slides 10--17)}}
+%============================================================================
+
+%--- SLIDE 10 ---
+\slideheader{10}{Roadmap (checkpoint)}
+
+\noindent
+\begin{tabular}{@{}L|R@{}}
+\cellcolor{lightblue}\textbf{Speaker Script (Danielle)} & \cellcolor{lightred}\textbf{Related Q\&A} \\
+\hline
+\small
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``Thanks, Pegah. So far: RL basics and convex MDPs motivation.''
+  \item ``Next: I'll show how \textbf{Fenchel duality} turns this into a saddle-point formulation.''
+\end{itemize}
+&
+\small
+\textit{(Transition slide---take a breath, check audience engagement.)}
+\\
+\end{tabular}
+
+\vspace{1em}
+
+%--- SLIDE 11 ---
+\slideheader{11}{Fenchel Conjugate: Definition}
+
+\noindent
+\begin{tabular}{@{}L|R@{}}
+\cellcolor{lightblue}\textbf{Speaker Script (Danielle)} & \cellcolor{lightred}\textbf{Related Q\&A} \\
+\hline
+\small
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``The \textbf{Fenchel conjugate} of convex $f$:''
+  \item ``$f^*(y) = \sup_{x} \{ \langle y, x \rangle - f(x) \}$ \pron{f-star of y equals supremum...}''
+  \item ``$y$: dual variable; $\langle y, x \rangle$: dot product; $\sup$ \pron{soup}: supremum''
+  \item ``Intuitively: how large can $\langle y, x \rangle$ be relative to $f(x)$?''
+  \item ``We'll use this to expose a min-max structure.''
+\end{itemize}
+&
+\small
+\question{Why bring in Fenchel conjugates at all?}
+
+\answer{Fenchel conjugates give us an identity:
+\[f(d) = \sup_y \{ \langle y, d \rangle - f^*(y) \}.\]
+Plugging this into $\min_{d \in \mathcal{D}} f(d)$ lets us rewrite the convex MDP as
+\[\min_{d \in \mathcal{D}} \max_y \{ \langle y, d \rangle - f^*(y) \}.\]
+So we get a saddle-point game with a natural dual variable $y$. This structure is what allows us to run two-player algorithms: one player updates $y$, the other updates the policy.}
+
+\vspace{0.3em}
+\question{How do you get the conjugate $f^*(y)$ in the entropy-regularized case?}
+
+\answer{For
+\[f(d) = -\langle r, d \rangle + \alpha \sum d \log d,\]
+you can complete the square in log-space / use standard convex analysis to show
+\[f^*(y) = \alpha \log \sum_{s,a} \exp((y(s,a) + r(s,a))/\alpha).\]
+Its gradient is a softmax: $\nabla f^*(y) = \text{softmax}((y + r)/\alpha)$. That's the expression we use in the dual update.}
+\\
+\end{tabular}
+
+\vspace{1em}
+
+%--- SLIDE 12 ---
+\slideheader{12}{Fenchel--Moreau Theorem}
+
+\noindent
+\begin{tabular}{@{}L|R@{}}
+\cellcolor{lightblue}\textbf{Speaker Script (Danielle)} & \cellcolor{lightred}\textbf{Related Q\&A} \\
+\hline
+\small
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``Key result: \textbf{Fenchel--Moreau theorem}.''
+  \item ``For proper, closed, convex $f$:''
+  \item ``$f(d) = \sup_y \{ \langle y, d \rangle - f^*(y) \}$''
+  \item ``So $f = f^{**}$ \pron{f equals f-double-star}.''
+  \item ``This allows us to turn \textbf{minimizing} $f(d)$ into a \textbf{min--max optimization} over $d$ and $y$.''
+\end{itemize}
+&
+\small
+\question{What assumptions for convex MDP formulation?}
+
+\answer{Discounted MDP ($\gamma < 1$), bounded reward/cost, stationary policies. $f$ must be proper, closed, convex on $\mathcal{D}$. Standard Fenchel--Moreau conditions for biconjugate equality and saddle point existence.}
+\\
+\end{tabular}
+
+\vspace{1em}
+
+%--- SLIDE 13 ---
+\slideheader{13}{Applying Fenchel Duality to Convex MDPs}
+
+\noindent
+\begin{tabular}{@{}L|R@{}}
+\cellcolor{lightblue}\textbf{Speaker Script (Danielle)} & \cellcolor{lightred}\textbf{Related Q\&A} \\
+\hline
+\small
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``Start with: $\min_{d \in \mathcal{D}} f(d)$''
+  \item ``Apply Fenchel--Moreau: $f(d) = \sup_y \{ \langle y, d \rangle - f^*(y) \}$''
+  \item ``Plug in: $\min_{d \in \mathcal{D}} \sup_y \{ \langle y, d \rangle - f^*(y) \}$''
+  \item ``This is a \textbf{convex-concave saddle-point problem}.''
+  \item ``Under standard assumptions, solving this equals solving original convex MDP.''
+  \item ``Replace $d$ by $d_\pi$: $\min_\pi \max_y L(\pi, y)$ where $L(\pi, y) = \langle y, d_\pi \rangle - f^*(y)$''
+\end{itemize}
+&
+\small
+\question{Why do you write $\min_d \max_y$ instead of $\max_y \min_d$? Are you allowed to swap min and max?}
+
+\answer{We derive the saddle-point form by directly applying Fenchel--Moreau:
+\[f(d) = \sup_y \{ \langle y, d \rangle - f^*(y) \},\]
+then taking $\min_d$ outside. Under standard convexity/closedness assumptions, there is no duality gap and the saddle-point value equals both the minimax and maximin. So while we don't literally swap orders in the algebra, we rely on these conditions to interpret the solution as an equilibrium of the game.}
+\\
+\end{tabular}
+
+\vspace{1em}
+
+%--- SLIDE 14 ---
+\slideheader{14}{Two-Player Game Interpretation}
+
+\noindent
+\begin{tabular}{@{}L|R@{}}
+\cellcolor{lightblue}\textbf{Speaker Script (Danielle)} & \cellcolor{lightred}\textbf{Related Q\&A} \\
+\hline
+\small
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``Saddle-point as a \textbf{two-player game}:''
+  \item ``$\min_\pi \max_y L(\pi, y) = \langle y, d_\pi \rangle - f^*(y)$''
+  \item ``\textbf{Policy player}: chooses $\pi$, wants to \textbf{minimize} $L$ (RL agent)''
+  \item ``\textbf{Dual player}: chooses $y$, wants to \textbf{maximize} $L$ (shapes reward)''
+  \item ``At equilibrium (saddle point): neither can unilaterally improve''
+  \item ``Policy player has $\pi^*$, dual player has $y^*$''
+\end{itemize}
+&
+\small
+\question{Why is the solution of the min--max at a saddle point?}
+
+\answer{Because in convex-concave problems, under suitable conditions, the minimax and maximin values coincide and are achieved at a pair $(\pi^*, y^*)$ satisfying
+\[L(\pi^*, y) \le L(\pi^*, y^*) \le L(\pi, y^*)\]
+for all $\pi, y$. That point is simultaneously optimal for the min player (policy) and the max player (dual), and is called a saddle point. Solving the min--max is thus equivalent to finding such a saddle point.}
+\\
+\end{tabular}
+
+\vspace{1em}
+
+%--- SLIDE 15 ---
+\slideheader{15}{Visualizing the Saddle Point}
+
+\noindent
+\begin{tabular}{@{}L|R@{}}
+\cellcolor{lightblue}\textbf{Speaker Script (Danielle)} & \cellcolor{lightred}\textbf{Related Q\&A} \\
+\hline
+\small
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``3D visualization: $L(d, y)$ as a surface''
+  \item ``$d$ (horizontal): policy-side variable''
+  \item ``$y$ (other axis): dual variable''
+  \item ``\textbf{Red point}: saddle point''
+  \item ``Along $d$-direction (fix $y$): red point is a \textbf{minimum}''
+  \item ``Along $y$-direction (fix $d$): red point is a \textbf{maximum}''
+  \item ``It's `best response' for both players $\to$ solution of min--max game''
+\end{itemize}
+&
+\small
+\question{Does your algorithm \textit{guarantee} convergence to the saddle point?}
+
+\answer{In the idealized tabular, exact-oracle setting, existing theory (Zahavy et al.\ + SPMA paper) shows that if the dual player and the policy player both use low-regret algorithms, the average iterates converge to a saddle point. In our implementation we have function approximation, noisy occupancy estimates, and finite inner loops, so we don't claim a formal convergence proof. Instead we check empirically that the saddle objective and constraints behave sensibly.}
+\\
+\end{tabular}
+
+\vspace{1em}
+
+%--- SLIDE 16 ---
+\slideheader{16}{From Saddle Point to Shaped Reward}
+
+\noindent
+\begin{tabular}{@{}L|R@{}}
+\cellcolor{lightblue}\textbf{Speaker Script (Danielle)} & \cellcolor{lightred}\textbf{Related Q\&A} \\
+\hline
+\small
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``How to minimize over policies in saddle-point?''
+  \item ``For fixed $y$, policy subproblem: $\min_\pi \langle y, d_\pi \rangle$''
+  \item ``Using occupancy definition: $\langle y, d_\pi \rangle = (1-\gamma) \mathbb{E}_\pi [\sum_t \gamma^t y(s_t, a_t)]$''
+  \item ``So minimizing $\langle y, d_\pi \rangle$ = \textbf{maximizing} return with \textbf{shaped reward}: $r_y(s,a) = -y(s,a)$''
+  \item ``\textbf{Key insight}: policy player can use \textbf{standard RL} on shaped reward $r_y = -y$''
+\end{itemize}
+&
+\small
+\question{What does the dual variable $y$ represent intuitively?}
+
+\answer{It's a vector of the same dimension as $d$---one coordinate per state--action pair. In the Fenchel dual, it's the variable that ``linearizes'' the convex objective. Operationally, for the policy player, $y$ is just a shaped reward field: we treat $r_y(s,a) = -y(s,a)$ as the reward. Different choices of $y$ encourage the policy to put occupancy where $f$ wants it.}
+
+\vspace{0.3em}
+\question{Does the shaped reward $r_y = -y$ break the Markov property or anything?}
+
+\answer{No, because $y$ is a function of the current state--action pair $(s,a)$ only; it doesn't introduce dependence on the entire trajectory. The environment dynamics $P(s'|s,a)$ are unchanged, and the reward at each step is just a different function of $(s,a)$. So the process is still a valid MDP, just with a different reward.}
+\\
+\end{tabular}
+
+\vspace{1em}
+
+%--- SLIDE 17 ---
+\slideheader{17}{Summary: The Fenchel Dual Reduction}
+
+\noindent
+\begin{tabular}{@{}L|R@{}}
+\cellcolor{lightblue}\textbf{Speaker Script (Danielle)} & \cellcolor{lightred}\textbf{Related Q\&A} \\
+\hline
+\small
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``Summary of reduction:''
+  \item ``Started with convex MDP: $\min_\pi f(d_\pi)$''
+  \item ``Fenchel duality $\to$ saddle-point: $\min_\pi \max_y L(\pi, y)$''
+  \item ``Fixing $y$: minimizing over $\pi$ = RL with shaped reward $r_y = -y$''
+  \item ``Simple algorithmic structure:''
+  \item ``1. \textbf{Dual step}: $y_{k+1} = y_k + \alpha(\hat{d}_{\pi_k} - \nabla f^*(y_k))$''
+  \item ``2. \textbf{Policy step}: run RL on $r_{y_k} = -y_k$ to get $\pi_{k+1}$''
+  \item ``Reduced to: \textbf{alternating convex optimization (dual) and standard RL (policy)}''
+\end{itemize}
+&
+\small
+\question{Why not just solve the convex program over $d$ with CVX or some LP solver?}
+
+\answer{You \textit{could} if the MDP is small and fully known. In our setting we assume a \textbf{model-free} RL scenario: we don't know the transition probabilities, we only interact with the environment by sampling trajectories. That means we can't write down $\mathcal{D}$ explicitly or compute exact expectations. RL gives us a way to approximate $\min_\pi \langle y, d_\pi \rangle$ from samples by treating $-y$ as a reward and running a policy optimizer.}
+
+\vspace{0.3em}
+\question{Why is alternating updates (policy step then dual step) reasonable, given that vanilla Gradient Descent--Ascent can diverge?}
+
+\answer{It's true that naive GDA can oscillate. We're not using plain GDA: we use specific online-learning style updates. The dual player uses a simple FTL/gradient step in a convex Euclidean space; the policy player uses SPMA, which is a mirror-descent method in logit space with convergence guarantees. Online saddle-point theory says that when both players have low regret, the average of their strategies converges to a saddle point, so alternating these particular updates is justified.}
+\\
+\end{tabular}
+
+\newpage
+%============================================================================
+\section*{\textcolor{sectioncolor}{Section 3: Related Work \& Our Method (Shervin, Slides 18--27)}}
+%============================================================================
+
+%--- SLIDE 18 ---
+\slideheader{18}{Roadmap (checkpoint)}
+
+\noindent
+\begin{tabular}{@{}L|R@{}}
+\cellcolor{lightblue}\textbf{Speaker Script (Shervin)} & \cellcolor{lightred}\textbf{Related Q\&A} \\
+\hline
+\small
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``We've completed the core math using Fenchel duality.''
+  \item ``Next: related work that inspired this framework and the specific policy optimizer, SPMA.''
+\end{itemize}
+&
+\small
+\textit{(Transition slide---Shervin takes over.)}
+\\
+\end{tabular}
+
+\vspace{1em}
+
+%--- SLIDE 19 ---
+\slideheader{19}{Related Work: ``Reward Is Enough''}
+
+\noindent
+\begin{tabular}{@{}L|R@{}}
+\cellcolor{lightblue}\textbf{Speaker Script (Shervin)} & \cellcolor{lightred}\textbf{Related Q\&A} \\
+\hline
+\small
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``First key paper: `\textit{Reward Is Enough for Convex MDPs}' by Zahavy et al.''
+  \item ``Foundational work for convex-MDP perspective.''
+  \item ``Three main contributions:''
+  \item ``1. \textbf{Fenchel dual reduction}: convex MDP $\to$ saddle-point''
+  \item ``2. \textbf{Meta-algorithm}: alternate policy \& dual updates''
+  \item ``3. Many RL paradigms (imitation, constrained, entropy-reg.) are special cases''
+  \item ``Our contribution: \textbf{implement this with SPMA} and compare to NPG--PD.''
+\end{itemize}
+&
+\small
+\question{If you can plug ``any RL algorithm'' into the policy player, why specifically SPMA?}
+
+\answer{The convex-MDP theory says any RL algorithm could in principle be used as the policy player. We choose SPMA because (i) it has \textbf{strong convergence results} in tabular MDPs, (ii) it's geometry-aware, operating in logit space with a softmax mirror map, (iii) its loss looks similar to PPO/MDPO, so it's practical to implement, and (iv) the SPMA paper already shows it's competitive with PPO/TRPO in continuous control.}
+\\
+\end{tabular}
+
+\vspace{1em}
+
+%--- SLIDE 20 ---
+\slideheader{20}{Related Work: Softmax Policy Mirror Ascent (SPMA)}
+
+\noindent
+\begin{tabular}{@{}L|R@{}}
+\cellcolor{lightblue}\textbf{Speaker Script (Shervin)} & \cellcolor{lightred}\textbf{Related Q\&A} \\
+\hline
+\small
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``Second key ingredient: \textbf{SPMA} from Asad et al.''
+  \item ``\textbf{Mirror ascent in logit space} using log-sum-exp mirror map.''
+  \item ``In tabular MDPs: achieves \textbf{linear convergence}.''
+  \item ``Tabular update: $\pi_{t+1}(a|s) = \pi_t(a|s)[1 + \eta A_{\pi_t}(s,a)]$''
+  \item ``\textbf{Geometry-aware}: respects probability simplex''
+  \item ``No explicit per-state normalization''
+  \item ``Clean extension to function approximation as convex classification''
+\end{itemize}
+&
+\small
+\question{How is SPMA different from vanilla policy gradient?}
+
+\answer{Vanilla PG minimizes $L_{\text{PG}} = -\mathbb{E}[\log \pi(a|s) A(s,a)]$ and takes gradient steps in parameter space. SPMA instead uses an \textbf{exponential-gradient / mirror-descent update in logit space}. The actor loss includes a regularizer
+\[\frac{1}{\eta}(\exp(\Delta \log \pi) - 1 - \Delta \log \pi)\]
+which penalizes large changes in log-probabilities. This gives better control over how far the policy moves per step and leads to faster convergence in the tabular theory.}
+
+\vspace{0.3em}
+\question{Why is SPMA ``geometry-aware''?}
+
+\answer{Because it does mirror ascent with the log-sum-exp mirror map, which is tailored to the simplex geometry. Instead of taking Euclidean steps in parameter space and then projecting back onto the simplex, SPMA treats the logits as dual variables and the softmax as the mirror map. This respects the probability constraints and tends to produce well-behaved updates when probabilities are near 0 or 1.}
+\\
+\end{tabular}
+
+\vspace{1em}
+
+%--- SLIDE 21 ---
+\slideheader{21}{Related Work: NPG--PD (Our Baseline)}
+
+\noindent
+\begin{tabular}{@{}L|R@{}}
+\cellcolor{lightblue}\textbf{Speaker Script (Shervin)} & \cellcolor{lightred}\textbf{Related Q\&A} \\
+\hline
+\small
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``Main baseline: \textbf{NPG--PD} (Ding et al.\ 2020)''
+  \item ``Designed for constrained MDPs with Lagrangian:''
+  \item ``$L(\pi, \lambda) = J_r(\pi) + \lambda(J_c(\pi) - \tau)$, $\lambda \ge 0$''
+  \item ``\textbf{Primal}: natural policy gradient ascent (Fisher geometry)''
+  \item ``\textbf{Dual}: $\lambda_{k+1} = [\lambda_k + \beta(J_c(\pi_k) - \tau)]_+$''
+  \item ``Has $\mathcal{O}(1/\sqrt{T})$ bounds on optimality gap \& constraint violation''
+  \item ``We use NPG--PD as our \textbf{comparison point}.''
+\end{itemize}
+&
+\small
+\question{How does SPMA compare to natural policy gradient conceptually?}
+
+\answer{Both are trying to account for the geometry of the policy space. Natural PG uses the Fisher information matrix to modify the gradient direction and step size; SPMA uses a Bregman divergence in logit space. In small tabular problems you can show they are closely related; in our setting we treat them as two reasonable but different choices of geometry-aware update and compare them empirically.}
+\\
+\end{tabular}
+
+\vspace{1em}
+
+%--- SLIDES 22--23 ---
+\slideheader{22--23}{Roadmap \& Our Contributions}
+
+\noindent
+\begin{tabular}{@{}L|R@{}}
+\cellcolor{lightblue}\textbf{Speaker Script (Shervin)} & \cellcolor{lightred}\textbf{Related Q\&A} \\
+\hline
+\small
+\textbf{Slide 22 (Roadmap):}
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``So far: convex-MDP theory, Fenchel dual framework, SPMA optimizer.''
+  \item ``Next: what we actually built.''
+\end{itemize}
+\textbf{Slide 23 (Our Contributions):}
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``1. \textbf{Complete Dual--SPMA framework}: outer dual loop + SPMA policy oracle''
+  \item ``Supports entropy-regularized RL and constrained safety CMDPs''
+  \item ``2. \textbf{Three occupancy estimators}: tabular MC, feature-based MC, MLE-style''
+  \item ``3. \textbf{Faithful NPG--PD baseline}''
+  \item ``4. \textbf{Empirical comparison} of SPMA vs NPG--PD on constrained safety''
+\end{itemize}
+&
+\small
+\question{Could you use other policy optimizers in place of SPMA?}
+
+\answer{Yes. The meta-algorithm from Zahavy et al.\ lets you plug in any RL method as the policy player. We chose SPMA because of its theory and similarity to modern methods, but in principle you could try PPO, TRPO, or MDPO. An interesting piece of future work would be a systematic empirical comparison of different policy players inside the same convex-MDP dual framework.}
+\\
+\end{tabular}
+
+\vspace{1em}
+
+%--- SLIDE 24 ---
+\slideheader{24}{Dual--SPMA Loop: High-Level View}
+
+\noindent
+\begin{tabular}{@{}L|R@{}}
+\cellcolor{lightblue}\textbf{Speaker Script (Shervin)} & \cellcolor{lightred}\textbf{Related Q\&A} \\
+\hline
+\small
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``High-level Dual--SPMA structure:''
+  \item ``Saddle-point objective: $L(\pi, y) = \langle y, d_\pi \rangle - f^*(y)$''
+  \item ``\textbf{Outer loop} (dual): $y_{k+1} = y_k + \alpha(\hat{d}_{\pi_k} - \nabla f^*(y_k))$''
+  \item ``Use estimated occupancy $\hat{d}_{\pi_k}$ from rollouts''
+  \item ``\textbf{Inner loop} (policy): run $K_{\text{inner}}$ SPMA steps on shaped reward $r_y = -y$''
+  \item ``After fixed outer iterations, return final policy $\pi_K$''
+\end{itemize}
+&
+\small
+\question{Why do you use a simple gradient/FTL step for the dual variable $y$?}
+
+\answer{The dual variable lives in a straightforward Euclidean space and the dual objective is convex with a simple gradient $\hat{d}_\pi - \nabla f^*(y_k)$. For such problems, basic online convex optimization algorithms like gradient ascent or FTL are known to have sublinear regret. They're easy to implement and come with clear theoretical guarantees, so there's no need for more complex methods.}
+
+\vspace{0.3em}
+\question{How do you choose the SPMA step size $\eta$?}
+
+\answer{We use a simple Armijo line search over a small discrete set of candidate $\eta$ values. For each candidate we compute the SPMA loss on a minibatch and pick the largest $\eta$ that produces a sufficient decrease. This is inspired by the SPMA paper and by MDPO/TRPO line-search practices.}
+\\
+\end{tabular}
+
+\vspace{1em}
+
+%--- SLIDE 25 ---
+\slideheader{25}{Policy Player: SPMA Actor Loss}
+
+\noindent
+\begin{tabular}{@{}L|R@{}}
+\cellcolor{lightblue}\textbf{Speaker Script (Shervin)} & \cellcolor{lightred}\textbf{Related Q\&A} \\
+\hline
+\small
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``SPMA policy update via custom \textbf{actor loss}.''
+  \item ``Standard PG: $L_{\text{PG}} = -\mathbb{E}[\log \pi(a|s) A(s,a)]$''
+  \item ``SPMA adds `stay close to old policy' regularizer in logit space:''
+  \item ``$L_{\text{SPMA}} = \mathbb{E}[-\Delta \log \pi \cdot A + \frac{1}{\eta}(\exp(\Delta \log \pi) - 1 - \Delta \log \pi)]$''
+  \item ``$\Delta \log \pi = \log \pi_{\text{new}} - \log \pi_{\text{old}}$''
+  \item ``Exponential term: KL-like regularizer penalizing large log-prob changes''
+\end{itemize}
+&
+\small
+\question{Where does your SPMA loss come from?}
+
+\answer{It's the convex surrogate corresponding to the tabular SPMA update. If you linearize the value function and consider an exponential-gradient step in logit space, the associated Bregman divergence gives rise to exactly that $\exp - 1 - \Delta \log \pi$ term. The SPMA paper derives it formally; we implement it as a differentiable loss so we can use standard automatic differentiation.}
+
+\vspace{0.3em}
+\question{Do you enforce the $[1 + \eta A]_+$ and normalization from the tabular update?}
+
+\answer{In the tabular theory, the closed-form update is
+\[\pi_{t+1}(a|s) \propto \pi_t(a|s)[1 + \eta A(s,a)]_+.\]
+In our neural approximation we don't directly enforce this per-state formula. Instead we optimize the SPMA loss over minibatches of trajectories; the softmax layer plus the KL-like regularizer implicitly enforce a similar behaviour. So we're using the \textbf{function-approximation version} of SPMA instead of the exact tabular update.}
+\\
+\end{tabular}
+
+\vspace{1em}
+
+%--- SLIDE 26 ---
+\slideheader{26}{Occupancy Estimation: MC vs MLE}
+
+\noindent
+\begin{tabular}{@{}L|R@{}}
+\cellcolor{lightblue}\textbf{Speaker Script (Shervin)} & \cellcolor{lightred}\textbf{Related Q\&A} \\
+\hline
+\small
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``Critical ingredient: occupancy estimate $\hat{d}_\pi$''
+  \item ``\textbf{Default}: Monte Carlo estimator:''
+  \item ``$\hat{d}_\pi(s,a) = \frac{1-\gamma}{N} \sum_{i=1}^{N} \sum_{t=0}^{T} \gamma^t \mathbf{1}\{s_t^{(i)} = s, a_t^{(i)} = a\}$''
+  \item ``Simple: count discounted visits. Variance grows with $|\mathcal{S}||\mathcal{A}|$.''
+  \item ``Also explored \textbf{MLE-based estimator} (Barakat et al.): log-linear $\lambda_\omega(s,a) \propto \exp(\omega^\top \phi(s,a))$''
+  \item ``Error depends on feature dimension, not $|\mathcal{S}||\mathcal{A}|$''
+  \item ``Sanity check: verified $\sum_{s,a} \hat{d}_\pi(s,a) \approx 1$''
+\end{itemize}
+&
+\small
+\question{Why not use exact occupancies in FrozenLake instead of Monte Carlo?}
+
+\answer{We intentionally use Monte Carlo to simulate the \textbf{model-free} setting most RL algorithms operate in---where you don't have access to $P(s'|s,a)$. It also keeps the pipeline more consistent with what you'd do in larger environments. Using the exact occupancy is possible in FrozenLake, but we'd then be solving a much easier problem that doesn't stress the estimator.}
+
+\vspace{0.3em}
+\question{How do you ensure your Monte Carlo occupancy estimate is valid?}
+
+\answer{We compute
+\[\hat{d}_\pi(s,a) = \frac{1-\gamma}{N} \sum_{i=1}^{N} \sum_{t=0}^{T} \gamma^t \mathbf{1}\{s_t^{(i)} = s, a_t^{(i)} = a\}.\]
+By construction this is non-negative. As a sanity check, we track $\sum_{s,a} \hat{d}_\pi(s,a)$ over training and verify it stays very close to 1; that's the plot on our entropy-regularized results slide. Small deviations come from truncating trajectories at finite $T$.}
+
+\vspace{0.3em}
+\question{What's the point of the MLE-based occupancy estimator?}
+
+\answer{The tabular MC estimator's variance scales with $|\mathcal{S}||\mathcal{A}|$; in large MDPs that's bad. The MLE estimator instead fits a log-linear model $\lambda_\omega(s,a) \propto \exp(\omega^\top \phi(s,a))$ by maximum likelihood on samples. Its error depends mostly on the feature dimension, not the raw state--action count. So it's a more scalable idea we wanted to prototype, although we only briefly tested it here.}
+\\
+\end{tabular}
+
+\vspace{1em}
+
+%--- SLIDE 27 ---
+\slideheader{27}{Example: Constrained Safety CMDP}
+
+\noindent
+\begin{tabular}{@{}L|R@{}}
+\cellcolor{lightblue}\textbf{Speaker Script (Shervin)} & \cellcolor{lightred}\textbf{Related Q\&A} \\
+\hline
+\small
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``How constrained MDP fits our framework:''
+  \item ``Problem: maximize $J_r(\pi)$ s.t.\ $J_c(\pi) \le \tau$''
+  \item ``In Dual--SPMA:''
+  \item ``1. Build dual: $y_\lambda(s,a) = \lambda c(s,a) - r(s,a)$''
+  \item ``2. Policy sees: $r_y = r - \lambda c$''
+  \item ``3. Run SPMA inner loop on $r_y$''
+  \item ``4. Update dual: $\lambda_{k+1} = [\lambda_k + \beta(J_c(\pi_k) - \tau)]_+$''
+  \item ``SPMA \& NPG--PD have \textbf{same dual update}---difference is policy optimizer.''
+  \item ``Now Ahmed presents experimental results.''
+\end{itemize}
+&
+\small
+\question{Are there any constraints on $y$? Do you project it?}
+
+\answer{In the entropy-regularized case, $y$ is unconstrained---we don't project. For CMDPs we sometimes parameterize the dual as $y_\lambda = \lambda c - r$ with $\lambda \ge 0$, so the only constraint is non-negativity on $\lambda$, which we enforce with a $[\cdot]_+$ projection (same as NPG--PD). More sophisticated bounds or regularizers on $y$ are possible but we didn't explore them in this project.}
+
+\vspace{0.3em}
+\question{Is the dual step size $\alpha$ sensitive?}
+
+\answer{Yes, like most gradient methods it needs to be in a reasonable range: too small and progress is slow; too large and you can oscillate. In practice we tuned $\alpha$ on a log scale and picked values where the dual objective and the constraint violation decreased smoothly. Because our setting is tabular and relatively small, this wasn't too painful.}
+\\
+\end{tabular}
+
+\newpage
+%============================================================================
+\section*{\textcolor{sectioncolor}{Section 4: Experiments \& Conclusion (Ahmed, Slides 28--36)}}
+%============================================================================
+
+%--- SLIDES 28--30 ---
+\slideheader{28--30}{CMDP Example, Roadmap, Experimental Setup}
+
+\noindent
+\begin{tabular}{@{}L|R@{}}
+\cellcolor{lightblue}\textbf{Speaker Script (Ahmed)} & \cellcolor{lightred}\textbf{Related Q\&A} \\
+\hline
+\small
+\textbf{Slide 28}: CMDP example (same as Slide 27, concrete walkthrough).
+
+\textbf{Slide 29}: ``We've described Dual--SPMA, occupancy estimators, NPG--PD baseline. Next: experimental setup and results.''
+
+\textbf{Slide 30 (Experimental Setup):}
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``Tabular setting for visualizing occupancies.''
+  \item ``Environment: \textbf{FrozenLake 4$\times$4} gridworld, deterministic transitions.''
+  \item ``Unsafe states (holes): cost $c = 1$.''
+  \item ``Compare: \textbf{Dual--SPMA} vs \textbf{NPG--PD}''
+  \item ``Track: $J_r(\pi)$, $J_c(\pi)$, $J_c - \tau$ (violation), occupancy sum $\approx 1$''
+  \item ``Settings: $\gamma = 0.99$, $\tau = 0.1$, 30 outer iterations, 2048 steps/rollout''
+\end{itemize}
+&
+\small
+\question{Why FrozenLake 4$\times$4?}
+
+\answer{Wanted \textbf{tabular} CMDP to (i) compute/visualize occupancies, (ii) understand safety constraint intuitively (holes vs safe), (iii) debug without function approximation error. Standard simple gridworld.}
+
+\vspace{0.3em}
+\question{How many trajectories/steps per outer iteration?}
+
+\answer{2048 environment steps per rollout per iteration. Enough for stable occupancy estimation and critic training in this small environment. Didn't push sample efficiency; systematic study would vary this.}
+
+\vspace{0.3em}
+\question{How do you measure ``success'' in your experiments?}
+
+\answer{Three criteria: (1) \textbf{constraint satisfaction}---$J_c(\pi) \le \tau$; (2) \textbf{reward}---$J_r(\pi)$ as high as possible; (3) \textbf{stability}---no blow-up or wild oscillations. On these, Dual--SPMA $\approx$ NPG--PD.}
+\\
+\end{tabular}
+
+\vspace{1em}
+
+%--- SLIDES 31--32 ---
+\slideheader{31--32}{Results: Entropy-Regularized RL \& Constrained CMDP}
+
+\noindent
+\begin{tabular}{@{}L|R@{}}
+\cellcolor{lightblue}\textbf{Speaker Script (Ahmed)} & \cellcolor{lightred}\textbf{Related Q\&A} \\
+\hline
+\small
+\textbf{Slide 31 (Entropy-Regularized):}
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``No constraints, just entropy bonus.''
+  \item ``Left: $L$ (Lagrangian) vs iteration---both methods decrease it.''
+  \item ``Right: occupancy sum $\approx 1$ (sanity check).''
+  \item ``SPMA and NPG--PD behave similarly.''
+\end{itemize}
+\textbf{Slide 32 (Constrained CMDP):}
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``Left: reward $J_r(\pi_k)$ increases over iterations.''
+  \item ``Right: violation $J_c(\pi_k) - \tau$ goes below zero (constraint satisfied).''
+  \item ``Both methods reach similar final performance.''
+\end{itemize}
+&
+\small
+\question{Which method converges faster?}
+
+\answer{Depends on hyperparameters. Typically SPMA takes larger, more ``aggressive'' steps, can reduce violation faster initially, but slightly more sensitive to hyperparameters. NPG--PD smoother but needs careful tuning of $\beta$. Final performance broadly comparable.}
+
+\vspace{0.3em}
+\question{How do you handle exploration?}
+
+\answer{Stochastic policy (softmax) naturally explores early. Entropy-regularized experiments explicitly add entropy term. No extra exploration bonuses.}
+\\
+\end{tabular}
+
+\vspace{1em}
+
+%--- SLIDES 33--34 ---
+\slideheader{33--34}{Results: SPMA vs NPG--PD \& Occupancy Heatmaps}
+
+\noindent
+\begin{tabular}{@{}L|R@{}}
+\cellcolor{lightblue}\textbf{Speaker Script (Ahmed)} & \cellcolor{lightred}\textbf{Related Q\&A} \\
+\hline
+\small
+\textbf{Slide 33 (Comparison):}
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``Left: reward $J_r$ vs iterations---similar once constraint satisfied.''
+  \item ``Right: violation---both bring close to zero, different curves.''
+  \item ``SPMA: larger steps, sometimes faster, more hyperparameter-sensitive.''
+  \item ``NPG--PD: smoother, needs careful $\beta$ tuning.''
+  \item ``Conclusion: Dual--SPMA is competitive, SPMA is viable policy optimizer.''
+\end{itemize}
+\textbf{Slide 34 (Heatmaps):}
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``\textbf{Left}: unconstrained policy---explores broadly, includes unsafe states.''
+  \item ``\textbf{Right}: safety-constrained---avoids unsafe states (occupancy $\approx 0$).''
+  \item ``Constraint reflected in agent behaviour, not just numerically.''
+\end{itemize}
+&
+\small
+\question{Do both methods satisfy the constraint?}
+
+\answer{Yes. Both reduce $J_c(\pi) - \tau$ toward zero. Violation plots approach/oscillate around zero. Learned policies' heatmaps clearly avoid unsafe states.}
+
+\vspace{0.3em}
+\question{Are advantages estimated with critic or MC?}
+
+\answer{Standard actor--critic: critic is value network trained with TD, advantage computed as $A = \hat{Q} - V$ via GAE or simple TD returns. Both SPMA and NPG--PD share same critic architecture.}
+
+\vspace{0.3em}
+\question{Do you use MLE estimator for main results?}
+
+\answer{No, we use MC estimator for main FrozenLake experiments. MLE implemented and tested briefly; full comparison is future work.}
+\\
+\end{tabular}
+
+\vspace{1em}
+
+%--- SLIDES 35--36 ---
+\slideheader{35--36}{Takeaways, Limitations \& Future Work}
+
+\noindent
+\begin{tabular}{@{}L|R@{}}
+\cellcolor{lightblue}\textbf{Speaker Script (Ahmed)} & \cellcolor{lightred}\textbf{Related Q\&A} \\
+\hline
+\small
+\textbf{Slide 35 (Takeaways \& Limitations):}
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``\textbf{Recipe}: Convex MDP $\to$ Fenchel dual $\to$ SPMA-based shaped-reward RL''
+  \item ``Built: Dual--SPMA loops, NPG--PD baseline, occupancy estimators''
+  \item ``Result: Dual--SPMA is stable, satisfies constraints, competitive with NPG--PD''
+  \item ``\textbf{Limitations}: only tabular settings; MLE estimator needs stress-testing; hyperparameter sensitivity not fully explored''
+\end{itemize}
+\textbf{Slide 36 (Future Work):}
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``\textbf{Scaling up}: larger CMDPs (MuJoCo), continuous states/actions''
+  \item ``\textbf{Better occupancy estimation}: MLE in high dimensions''
+  \item ``\textbf{More convex objectives}: risk-sensitive, imitation learning''
+  \item ``\textbf{Theory}: convergence rates and sample complexity bounds''
+\end{itemize}
+&
+\small
+\question{What are the main limitations of your project?}
+
+\answer{The big three are: (1) we only test in small tabular environments, so we don't claim scalability yet; (2) our MLE estimator is implemented but not fully stress-tested on large problems; and (3) we don't provide a formal convergence-rate analysis for the full Dual--SPMA algorithm with function approximation---only for the inner SPMA and the baseline, via existing theory.}
+
+\vspace{0.3em}
+\question{How hard would it be to extend this to MuJoCo or other continuous-control tasks?}
+
+\answer{Conceptually it's straightforward: we keep the same dual update and shaped-reward view, but replace the tabular policy with a neural policy over continuous actions (e.g., Gaussian). The main challenges are practical: occupancy estimation in continuous spaces (we'd rely on feature-based or MLE estimators), tuning SPMA or NPG--PD in higher dimensions, and computational cost. It's doable but beyond the scope of this course project.}
+
+\vspace{0.3em}
+\question{What would a convergence-rate analysis of Dual--SPMA look like?}
+
+\answer{It would likely combine: (1) regret bounds for the dual player (FTL/gradient); (2) convergence or regret bounds for SPMA as a policy optimizer under shaped rewards; and (3) error terms due to approximate occupancy estimation and finite inner loops. Those could be turned into an $\mathcal{O}(1/\sqrt{T})$ or better bound on the primal--dual gap of averaged iterates. We didn't attempt this full derivation, so we list it explicitly as future work.}
+\\
+\end{tabular}
+
+\vspace{1em}
+
+%--- SLIDES 37--38 ---
+\slideheader{37--38}{Q\&A \& References}
+
+\noindent
+\begin{tabular}{@{}L|R@{}}
+\cellcolor{lightblue}\textbf{Speaker Script} & \cellcolor{lightred}\textbf{Related Q\&A} \\
+\hline
+\small
+\textbf{Slide 37 (Q\&A):}
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``Thanks for listening---that concludes our presentation.''
+  \item ``We're happy to take questions.''
+  \item (Remind: ``Pegah: background; Danielle: Fenchel dual; Shervin: related work \& method; Ahmed: experiments.'')
+\end{itemize}
+\textbf{Slide 38 (References):}
+\begin{itemize}[leftmargin=*, itemsep=1pt, topsep=2pt]
+  \item ``Main references: Zahavy et al.\ (convex MDPs), Asad et al.\ (SPMA), Ding et al.\ (NPG--PD), Barakat et al.\ (MLE occupancy).''
+\end{itemize}
+&
+\small
+\textit{(Use the complete Q\&A bank on the next page for any questions during Q\&A session.)}
+\\
+\end{tabular}
+
+\newpage
+%============================================================================
+\section*{Complete Q\&A Bank by Category}
+%============================================================================
+
+\small
+
+\subsection*{1. Big-picture \& motivation (Q1--Q5)}
+
+\textbf{Q1. What's the main takeaway of your project in one sentence?}
+
+\textcolor{acolor}{A1. We show that if you take the convex-MDP framework of Zahavy et al.\ and plug in SPMA as the policy optimizer, you get a simple ``Dual--SPMA'' recipe that (i) is easy to implement as shaped-reward RL, and (ii) performs competitively with a strong primal--dual baseline, NPG--PD, on constrained safety tasks.}
+
+\vspace{0.5em}
+\textbf{Q2. Why do we even care about \textit{convex} MDPs instead of just standard RL?}
+
+\textcolor{acolor}{A2. Standard RL maximizes a linear function of the occupancy measure---expected return---so it's great when you only care about reward. Many real problems add structure: safety constraints, exploration terms, risk penalties, imitation losses, etc. Many of those can be written as convex functionals of the occupancy $d_\pi$. Convex MDPs give a unified way to handle these goals while preserving nice optimization properties like existence of a saddle point.}
+
+\vspace{0.5em}
+\textbf{Q3. How is this different from just ``constrained RL with a Lagrange multiplier''?}
+
+\textcolor{acolor}{A3. Classic constrained RL focuses on a particular structure: reward plus linear constraints. Convex MDPs are more general: you minimize an arbitrary convex function $f(d_\pi)$ over the convex occupancy polytope. Constrained RL is one example where $f$ adds a penalty or indicator for constraint violations; entropy-regularized RL and some imitation objectives are \textit{other} examples. Our framework---and the Fenchel duality step---work for all of them, not just linear constraints.}
+
+\vspace{0.5em}
+\textbf{Q4. Why do you compare against NPG--PD in particular? Why not PPO or TRPO?}
+
+\textcolor{acolor}{A4. The core of our work is about \textbf{convex objectives \& dual variables}, not generic performance on Atari. NPG--PD is a principled \textit{primal--dual} algorithm specifically designed for constrained MDPs, with guarantees on both optimality and constraint violation. It also uses a geometry-aware policy update (natural gradient), which makes the comparison with SPMA conceptually clean. PPO/TRPO are great empirically, but they're not formulated directly as primal--dual CMDP algorithms.}
+
+\vspace{0.5em}
+\textbf{Q5. Is Dual--SPMA supposed to \textit{beat} NPG--PD?}
+
+\textcolor{acolor}{A5. For a term project we don't claim to beat state of the art. What we want to show is that SPMA is a \textbf{viable policy player} inside the convex-MDP dual framework: it's stable, respects constraints, and gives reward comparable to NPG--PD. Beating a heavily tuned algorithm like PPO or NPG--PD consistently would require much more engineering and experimentation than we can do here.}
+
+\vspace{1em}
+\subsection*{2. Occupancy measures \& convex MDP formulation (Q6--Q11)}
+
+\textbf{Q6. Why introduce occupancy measures at all? Why not just work with $J(\pi)$?}
+
+\textcolor{acolor}{A6. Because in terms of policy parameters, $J(\pi)$ is generally non-convex. In terms of occupancy, return is \textbf{linear}: $\langle r, d_\pi \rangle = (1-\gamma)J(\pi)$. Many interesting extras (entropy, penalties, constraints) are convex in $d$. The set of valid occupancies is a convex polytope defined by linear flow constraints. So in $d$-space we get a clean convex program: minimize a convex $f(d)$ over a convex set $\mathcal{D}$.}
+
+\vspace{0.5em}
+\textbf{Q7. Can you restate the key identity relating $J(\pi)$ and $d_\pi$?}
+
+\textcolor{acolor}{A7. Yes: we define
+\[d_\pi(s,a) = (1-\gamma)\sum_{t=0}^{\infty} \gamma^t \Pr_\pi(s_t=s, a_t=a).\]
+Then
+\[\langle r, d_\pi \rangle = \sum_{s,a} r(s,a)\,d_\pi(s,a) = (1-\gamma)J(\pi).\]
+So up to the constant factor $1-\gamma$, the RL objective is just a linear function of the occupancy measure.}
+
+\vspace{0.5em}
+\textbf{Q8. What exactly is $\mathcal{D}$, the set of feasible occupancies?}
+
+\textcolor{acolor}{A8. $\mathcal{D}$ is the set of $d \in \mathbb{R}^{|\mathcal{S}||\mathcal{A}|}$ that satisfy the Bellman flow constraints plus non-negativity: for every state $s$,
+\[\sum_a d(s,a) = (1-\gamma)\rho(s) + \gamma \sum_{s',a'} P(s|s',a')\,d(s',a'), \quad d(s,a) \ge 0.\]
+This says ``discounted occupancy flowing \textit{into} a state equals initial occupancy plus discounted flow from other states.'' It's a convex polytope.}
+
+\vspace{0.5em}
+\textbf{Q9. Is there a 1--1 correspondence between policies and occupancy measures?}
+
+\textcolor{acolor}{A9. Under mild regularity conditions (e.g., communicating MDP, $\gamma < 1$), each stationary policy has a unique discounted occupancy measure, and each valid occupancy in $\mathcal{D}$ corresponds to at least one stationary policy (you can recover $\pi(a|s) = d(s,a)/\sum_{a'} d(s,a')$ where the denominator is nonzero). So working in $d$-space is equivalent, up to degeneracies.}
+
+\vspace{0.5em}
+\textbf{Q10. Why do you call $f(d)$ ``convex'' when there's a minus reward term $-\langle r, d \rangle$?}
+
+\textcolor{acolor}{A10. Because $-\langle r, d \rangle$ is linear in $d$, and linear functions are both convex and concave. When we add convex terms like entropy or penalties, the sum stays convex. So all the examples on the ``Convex MDP: Examples'' slide fit into ``convex $f$'' without breaking anything.}
+
+\vspace{0.5em}
+\textbf{Q11. What assumptions do you need for your convex MDP formulation?}
+
+\textcolor{acolor}{A11. We assume a discounted MDP with $\gamma < 1$, bounded reward and cost, and that we restrict to stationary policies. For convexity, we require $f$ to be proper, closed, and convex on the occupancy polytope $\mathcal{D}$. For the Fenchel reduction, we also need standard conditions that guarantee the biconjugate equality and existence of a saddle point---essentially the Fenchel--Moreau assumptions.}
+
+\vspace{1em}
+\subsection*{3. Fenchel duality \& saddle-point formulation (Q12--Q18)}
+
+\textbf{Q12. Why bring in Fenchel conjugates at all?}
+
+\textcolor{acolor}{A12. Fenchel conjugates give us an identity:
+\[f(d) = \sup_y \{ \langle y, d \rangle - f^*(y) \}.\]
+Plugging this into $\min_{d \in \mathcal{D}} f(d)$ lets us rewrite the convex MDP as
+\[\min_{d \in \mathcal{D}} \max_y \{ \langle y, d \rangle - f^*(y) \}.\]
+So we get a saddle-point game with a natural dual variable $y$. This structure is what allows us to run two-player algorithms: one player updates $y$, the other updates the policy.}
+
+\vspace{0.5em}
+\textbf{Q13. What does the dual variable $y$ represent intuitively?}
+
+\textcolor{acolor}{A13. It's a vector of the same dimension as $d$---one coordinate per state--action pair. In the Fenchel dual, it's the variable that ``linearizes'' the convex objective. Operationally, for the policy player, $y$ is just a shaped reward field: we treat $r_y(s,a) = -y(s,a)$ as the reward. Different choices of $y$ encourage the policy to put occupancy where $f$ wants it.}
+
+\vspace{0.5em}
+\textbf{Q14. Why is the solution of the min--max at a saddle point?}
+
+\textcolor{acolor}{A14. Because in convex-concave problems, under suitable conditions, the minimax and maximin values coincide and are achieved at a pair $(\pi^*, y^*)$ satisfying
+\[L(\pi^*, y) \le L(\pi^*, y^*) \le L(\pi, y^*)\]
+for all $\pi, y$. That point is simultaneously optimal for the min player (policy) and the max player (dual), and is called a saddle point. Solving the min--max is thus equivalent to finding such a saddle point.}
+
+\vspace{0.5em}
+\textbf{Q15. Does your algorithm \textit{guarantee} convergence to the saddle point?}
+
+\textcolor{acolor}{A15. In the idealized tabular, exact-oracle setting, existing theory (Zahavy et al.\ + SPMA paper) shows that if the dual player and the policy player both use low-regret algorithms, the average iterates converge to a saddle point. In our implementation we have function approximation, noisy occupancy estimates, and finite inner loops, so we don't claim a formal convergence proof. Instead we check empirically that the saddle objective and constraints behave sensibly.}
+
+\vspace{0.5em}
+\textbf{Q16. Why is alternating updates (policy step then dual step) reasonable, given that vanilla Gradient Descent--Ascent can diverge?}
+
+\textcolor{acolor}{A16. It's true that naive GDA can oscillate. We're not using plain GDA: we use specific online-learning style updates. The dual player uses a simple FTL/gradient step in a convex Euclidean space; the policy player uses SPMA, which is a mirror-descent method in logit space with convergence guarantees. Online saddle-point theory says that when both players have low regret, the average of their strategies converges to a saddle point, so alternating these particular updates is justified.}
+
+\vspace{0.5em}
+\textbf{Q17. How do you get the conjugate $f^*(y)$ in the entropy-regularized case?}
+
+\textcolor{acolor}{A17. For
+\[f(d) = -\langle r, d \rangle + \alpha \sum d \log d,\]
+you can complete the square in log-space / use standard convex analysis to show
+\[f^*(y) = \alpha \log \sum_{s,a} \exp((y(s,a) + r(s,a))/\alpha).\]
+Its gradient is a softmax: $\nabla f^*(y) = \text{softmax}((y + r)/\alpha)$. That's the expression we use in the dual update.}
+
+\vspace{0.5em}
+\textbf{Q18. Why do you write $\min_d \max_y$ instead of $\max_y \min_d$? Are you allowed to swap min and max?}
+
+\textcolor{acolor}{A18. We derive the saddle-point form by directly applying Fenchel--Moreau:
+\[f(d) = \sup_y \{ \langle y, d \rangle - f^*(y) \},\]
+then taking $\min_d$ outside. Under standard convexity/closedness assumptions, there is no duality gap and the saddle-point value equals both the minimax and maximin. So while we don't literally swap orders in the algebra, we rely on these conditions to interpret the solution as an equilibrium of the game.}
+
+\vspace{1em}
+\subsection*{4. Shaped-reward RL and ``why RL'' (Q19--Q21)}
+
+\textbf{Q19. Why not just solve the convex program over $d$ with CVX or some LP solver?}
+
+\textcolor{acolor}{A19. You \textit{could} if the MDP is small and fully known. In our setting we assume a \textbf{model-free} RL scenario: we don't know the transition probabilities, we only interact with the environment by sampling trajectories. That means we can't write down $\mathcal{D}$ explicitly or compute exact expectations. RL gives us a way to approximate $\min_\pi \langle y, d_\pi \rangle$ from samples by treating $-y$ as a reward and running a policy optimizer.}
+
+\vspace{0.5em}
+\textbf{Q20. Does the shaped reward $r_y = -y$ break the Markov property or anything?}
+
+\textcolor{acolor}{A20. No, because $y$ is a function of the current state--action pair $(s,a)$ only; it doesn't introduce dependence on the entire trajectory. The environment dynamics $P(s'|s,a)$ are unchanged, and the reward at each step is just a different function of $(s,a)$. So the process is still a valid MDP, just with a different reward.}
+
+\vspace{0.5em}
+\textbf{Q21. If you can plug ``any RL algorithm'' into the policy player, why specifically SPMA?}
+
+\textcolor{acolor}{A21. The convex-MDP theory says any RL algorithm could in principle be used as the policy player. We choose SPMA because (i) it has \textbf{strong convergence results} in tabular MDPs, (ii) it's geometry-aware, operating in logit space with a softmax mirror map, (iii) its loss looks similar to PPO/MDPO, so it's practical to implement, and (iv) the SPMA paper already shows it's competitive with PPO/TRPO in continuous control.}
+
+\vspace{1em}
+\subsection*{5. SPMA details \& comparison to other policy gradients (Q22--Q27)}
+
+\textbf{Q22. How is SPMA different from vanilla policy gradient?}
+
+\textcolor{acolor}{A22. Vanilla PG minimizes $L_{\text{PG}} = -\mathbb{E}[\log \pi(a|s) A(s,a)]$ and takes gradient steps in parameter space. SPMA instead uses an \textbf{exponential-gradient / mirror-descent update in logit space}. The actor loss includes a regularizer
+\[\frac{1}{\eta}(\exp(\Delta \log \pi) - 1 - \Delta \log \pi)\]
+which penalizes large changes in log-probabilities. This gives better control over how far the policy moves per step and leads to faster convergence in the tabular theory.}
+
+\vspace{0.5em}
+\textbf{Q23. Where does your SPMA loss come from?}
+
+\textcolor{acolor}{A23. It's the convex surrogate corresponding to the tabular SPMA update. If you linearize the value function and consider an exponential-gradient step in logit space, the associated Bregman divergence gives rise to exactly that $\exp - 1 - \Delta \log \pi$ term. The SPMA paper derives it formally; we implement it as a differentiable loss so we can use standard automatic differentiation.}
+
+\vspace{0.5em}
+\textbf{Q24. Do you enforce the $[1 + \eta A]_+$ and normalization from the tabular update?}
+
+\textcolor{acolor}{A24. In the tabular theory, the closed-form update is
+\[\pi_{t+1}(a|s) \propto \pi_t(a|s)[1 + \eta A(s,a)]_+.\]
+In our neural approximation we don't directly enforce this per-state formula. Instead we optimize the SPMA loss over minibatches of trajectories; the softmax layer plus the KL-like regularizer implicitly enforce a similar behaviour. So we're using the \textbf{function-approximation version} of SPMA instead of the exact tabular update.}
+
+\vspace{0.5em}
+\textbf{Q25. How do you choose the SPMA step size $\eta$?}
+
+\textcolor{acolor}{A25. We use a simple Armijo line search over a small discrete set of candidate $\eta$ values. For each candidate we compute the SPMA loss on a minibatch and pick the largest $\eta$ that produces a sufficient decrease. This is inspired by the SPMA paper and by MDPO/TRPO line-search practices.}
+
+\vspace{0.5em}
+\textbf{Q26. Why is SPMA ``geometry-aware''?}
+
+\textcolor{acolor}{A26. Because it does mirror ascent with the log-sum-exp mirror map, which is tailored to the simplex geometry. Instead of taking Euclidean steps in parameter space and then projecting back onto the simplex, SPMA treats the logits as dual variables and the softmax as the mirror map. This respects the probability constraints and tends to produce well-behaved updates when probabilities are near 0 or 1.}
+
+\vspace{0.5em}
+\textbf{Q27. How does SPMA compare to natural policy gradient conceptually?}
+
+\textcolor{acolor}{A27. Both are trying to account for the geometry of the policy space. Natural PG uses the Fisher information matrix to modify the gradient direction and step size; SPMA uses a Bregman divergence in logit space. In small tabular problems you can show they are closely related; in our setting we treat them as two reasonable but different choices of geometry-aware update and compare them empirically.}
+
+\vspace{1em}
+\subsection*{6. Dual-update \& FTL choice (Q28--Q30)}
+
+\textbf{Q28. Why do you use a simple gradient/FTL step for the dual variable $y$?}
+
+\textcolor{acolor}{A28. The dual variable lives in a straightforward Euclidean space and the dual objective is convex with a simple gradient $\hat{d}_\pi - \nabla f^*(y_k)$. For such problems, basic online convex optimization algorithms like gradient ascent or FTL are known to have sublinear regret. They're easy to implement and come with clear theoretical guarantees, so there's no need for more complex methods.}
+
+\vspace{0.5em}
+\textbf{Q29. Are there any constraints on $y$? Do you project it?}
+
+\textcolor{acolor}{A29. In the entropy-regularized case, $y$ is unconstrained---we don't project. For CMDPs we sometimes parameterize the dual as $y_\lambda = \lambda c - r$ with $\lambda \ge 0$, so the only constraint is non-negativity on $\lambda$, which we enforce with a $[\cdot]_+$ projection (same as NPG--PD). More sophisticated bounds or regularizers on $y$ are possible but we didn't explore them in this project.}
+
+\vspace{0.5em}
+\textbf{Q30. Is the dual step size $\alpha$ sensitive?}
+
+\textcolor{acolor}{A30. Yes, like most gradient methods it needs to be in a reasonable range: too small and progress is slow; too large and you can oscillate. In practice we tuned $\alpha$ on a log scale and picked values where the dual objective and the constraint violation decreased smoothly. Because our setting is tabular and relatively small, this wasn't too painful.}
+
+\vspace{1em}
+\subsection*{7. Occupancy estimation (Q31--Q34)}
+
+\textbf{Q31. Why not use exact occupancies in FrozenLake instead of Monte Carlo?}
+
+\textcolor{acolor}{A31. We intentionally use Monte Carlo to simulate the \textbf{model-free} setting most RL algorithms operate in---where you don't have access to $P(s'|s,a)$. It also keeps the pipeline more consistent with what you'd do in larger environments. Using the exact occupancy is possible in FrozenLake, but we'd then be solving a much easier problem that doesn't stress the estimator.}
+
+\vspace{0.5em}
+\textbf{Q32. How do you ensure your Monte Carlo occupancy estimate is valid?}
+
+\textcolor{acolor}{A32. We compute
+\[\hat{d}_\pi(s,a) = \frac{1-\gamma}{N} \sum_{i=1}^{N} \sum_{t=0}^{T} \gamma^t \mathbf{1}\{s_t^{(i)} = s, a_t^{(i)} = a\}.\]
+By construction this is non-negative. As a sanity check, we track $\sum_{s,a} \hat{d}_\pi(s,a)$ over training and verify it stays very close to 1; that's the plot on our entropy-regularized results slide. Small deviations come from truncating trajectories at finite $T$.}
+
+\vspace{0.5em}
+\textbf{Q33. What's the point of the MLE-based occupancy estimator?}
+
+\textcolor{acolor}{A33. The tabular MC estimator's variance scales with $|\mathcal{S}||\mathcal{A}|$; in large MDPs that's bad. The MLE estimator instead fits a log-linear model $\lambda_\omega(s,a) \propto \exp(\omega^\top \phi(s,a))$ by maximum likelihood on samples. Its error depends mostly on the feature dimension, not the raw state--action count. So it's a more scalable idea we wanted to prototype, although we only briefly tested it here.}
+
+\vspace{0.5em}
+\textbf{Q34. Do you actually use the MLE estimator for the main results, or just MC?}
+
+\textcolor{acolor}{A34. No, we use MC estimator for main FrozenLake experiments. MLE implemented and tested briefly; full comparison is future work.}
+
+\vspace{1em}
+\subsection*{8. Experiments \& empirical behaviour (Q35--Q40)}
+
+\textbf{Q35. Why did you choose FrozenLake 4$\times$4 as your main environment?}
+
+\textcolor{acolor}{A35. Wanted \textbf{tabular} CMDP to (i) compute/visualize occupancies, (ii) understand safety constraint intuitively (holes vs safe), (iii) debug without function approximation error. Standard simple gridworld.}
+
+\vspace{0.5em}
+\textbf{Q36. Do both methods actually satisfy the safety constraint?}
+
+\textcolor{acolor}{A36. Yes. Both reduce $J_c(\pi) - \tau$ toward zero. Violation plots approach/oscillate around zero. Learned policies' heatmaps clearly avoid unsafe states.}
+
+\vspace{0.5em}
+\textbf{Q37. Which method converges faster in your experiments?}
+
+\textcolor{acolor}{A37. Depends on hyperparameters. Typically SPMA takes larger, more ``aggressive'' steps, can reduce violation faster initially, but slightly more sensitive to hyperparameters. NPG--PD smoother but needs careful tuning of $\beta$. Final performance broadly comparable.}
+
+\vspace{0.5em}
+\textbf{Q38. How many trajectories / steps do you need per outer iteration?}
+
+\textcolor{acolor}{A38. 2048 environment steps per rollout per iteration. Enough for stable occupancy estimation and critic training in this small environment. Didn't push sample efficiency; systematic study would vary this.}
+
+\vspace{0.5em}
+\textbf{Q39. Are the advantages estimated with a critic network or Monte Carlo?}
+
+\textcolor{acolor}{A39. Standard actor--critic: critic is value network trained with TD, advantage computed as $A = \hat{Q} - V$ via GAE or simple TD returns. Both SPMA and NPG--PD share same critic architecture.}
+
+\vspace{0.5em}
+\textbf{Q40. How do you handle exploration in these experiments?}
+
+\textcolor{acolor}{A40. Stochastic policy (softmax) naturally explores early. Entropy-regularized experiments explicitly add entropy term. No extra exploration bonuses.}
+
+\vspace{1em}
+\subsection*{9. Limitations \& future work (Q41--Q44)}
+
+\textbf{Q41. What are the main limitations of your project?}
+
+\textcolor{acolor}{A41. The big three are: (1) we only test in small tabular environments, so we don't claim scalability yet; (2) our MLE estimator is implemented but not fully stress-tested on large problems; and (3) we don't provide a formal convergence-rate analysis for the full Dual--SPMA algorithm with function approximation---only for the inner SPMA and the baseline, via existing theory.}
+
+\vspace{0.5em}
+\textbf{Q42. How hard would it be to extend this to MuJoCo or other continuous-control tasks?}
+
+\textcolor{acolor}{A42. Conceptually it's straightforward: we keep the same dual update and shaped-reward view, but replace the tabular policy with a neural policy over continuous actions (e.g., Gaussian). The main challenges are practical: occupancy estimation in continuous spaces (we'd rely on feature-based or MLE estimators), tuning SPMA or NPG--PD in higher dimensions, and computational cost. It's doable but beyond the scope of this course project.}
+
+\vspace{0.5em}
+\textbf{Q43. Could you use other policy optimizers in place of SPMA?}
+
+\textcolor{acolor}{A43. Yes. The meta-algorithm from Zahavy et al.\ lets you plug in any RL method as the policy player. We chose SPMA because of its theory and similarity to modern methods, but in principle you could try PPO, TRPO, or MDPO. An interesting piece of future work would be a systematic empirical comparison of different policy players inside the same convex-MDP dual framework.}
+
+\vspace{0.5em}
+\textbf{Q44. What would a convergence-rate analysis of Dual--SPMA look like?}
+
+\textcolor{acolor}{A44. It would likely combine: (1) regret bounds for the dual player (FTL/gradient); (2) convergence or regret bounds for SPMA as a policy optimizer under shaped rewards; and (3) error terms due to approximate occupancy estimation and finite inner loops. Those could be turned into an $\mathcal{O}(1/\sqrt{T})$ or better bound on the primal--dual gap of averaged iterates. We didn't attempt this full derivation, so we list it explicitly as future work.}
+
+\vspace{1em}
+\subsection*{10. Misc / notation and implementation details (Q45--Q48)}
+
+\textbf{Q45. What's the difference between $y$ and $\lambda$ in your notation?}
+
+\textcolor{acolor}{A45. $y$ is the general Fenchel dual variable over state--action pairs in the convex-MDP formulation. $\lambda$ is the scalar Lagrange multiplier for CMDP safety constraints. In the constrained case we sometimes define a structured dual variable $y_\lambda(s,a) = \lambda c(s,a) - r(s,a)$, so $y$ is parameterized by $\lambda$.}
+
+\vspace{0.5em}
+\textbf{Q46. Why does your ``Convex MDP examples'' slide use $\mu$ as a penalty weight instead of $\lambda$?}
+
+\textcolor{acolor}{A46. We intentionally use $\mu$ there to distinguish a \textbf{fixed penalty weight} in a penalized objective from the \textbf{Lagrange multiplier} $\lambda$ that evolves as a dual variable. This avoids confusion between ``tunable hyperparameter'' and ``optimization variable''.}
+
+\vspace{0.5em}
+\textbf{Q47. What exactly are $J_r(\pi)$ and $J_c(\pi)$?}
+
+\textcolor{acolor}{A47. They are just discounted returns with respect to reward and cost:
+$J_r(\pi) = \mathbb{E}_\pi[\sum_t \gamma^t r(s_t, a_t)]$,
+$J_c(\pi) = \mathbb{E}_\pi[\sum_t \gamma^t c(s_t, a_t)]$.
+We estimate them by Monte Carlo averaging over rollouts.}
+
+\vspace{0.5em}
+\textbf{Q48. How do you measure ``success'' in your experiments?}
+
+\textcolor{acolor}{A48. We consider three main criteria: (1) \textbf{constraint satisfaction}---$J_c(\pi)$ should be at or below $\tau$; (2) \textbf{reward}---$J_r(\pi)$ should be as high as possible given the constraint; and (3) \textbf{stability}---dual variables and occupancies shouldn't blow up or oscillate wildly. On those metrics, Dual--SPMA behaves about as well as NPG--PD in our tests.}
+
+\end{document}
